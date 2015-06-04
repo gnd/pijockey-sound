@@ -1,5 +1,11 @@
 /* -*- Mode: c; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*- */
 
+/* TODO
+- what is rand ?
+- what is prev_layer & prev_layer_resolution ?
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +40,7 @@ struct RenderLayer_ {
     GLuint framebuffer;
     struct {
         GLuint vertex_coord;
+        GLuint snd;
         GLuint mouse;
         GLuint time;
         GLuint resolution;
@@ -314,6 +321,7 @@ static int RenderLayer_BuildProgram(RenderLayer *layer,
     glUseProgram(layer->program);
     layer->attr.vertex_coord = glGetAttribLocation(layer->program, "vertex_coord");
     layer->attr.time = glGetUniformLocation(layer->program, "time");
+    layer->attr.snd = glGetUniformLocation(layer->program, "snd");
     layer->attr.mouse = glGetUniformLocation(layer->program, "mouse");
     layer->attr.resolution = glGetUniformLocation(layer->program, "resolution");
     layer->attr.backbuffer = glGetUniformLocation(layer->program, "backbuffer");
@@ -716,6 +724,7 @@ int Graphics_BuildRenderLayer(Graphics *g, int layer_index)
 }
 
 void Graphics_SetUniforms(Graphics *g, double t,
+			  double snd_a,
                           double mouse_x, double mouse_y,
                           double random)
 {
@@ -730,6 +739,7 @@ void Graphics_SetUniforms(Graphics *g, double t,
         glUseProgram(p->program);
         glUniform1f(p->attr.time, t);
         glUniform2f(p->attr.resolution, (double)width, (double)height);
+        glUniform1f(p->attr.snd, snd_a);
         glUniform2f(p->attr.mouse, mouse_x, mouse_y);
         glUniform1f(p->attr.rand, random);
         glUseProgram(0);

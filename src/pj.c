@@ -1,5 +1,11 @@
 /* -*- Mode: c; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*- */
 
+/* TODO
++- non-blocking receiving
++- close socket on exit
++- pass only snd to dopoll()
++*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +26,14 @@
 #include "base.h"
 #include "pj.h"
 #include "graphics.h"
+
+/* pdreceive includes */
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netdb.h>
+#define SOCKET_ERROR -1
+
 
 
 
@@ -44,6 +58,9 @@ struct PJContext_ {
         int x, y;
         int fd;
     } mouse;
+    struct {
+        int a;
+    } snd;
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
     struct {
@@ -56,6 +73,177 @@ struct PJContext_ {
     } scaling;
 };
 
+/* PDRCV */
+typedef struct _fdpoll
+{
+    int fdp_fd;
+    char *fdp_outbuf;/*output message buffer*/
+    int fdp_outlen;     /*length of output message*/
+    int fdp_discard;/*buffer overflow: output message is incomplete, discard it*/
+    int fdp_gotsemi;/*last char from input was a semicolon*/
+} t_fdpoll;
+
+static int nfdpoll;
+static t_fdpoll *fdpoll;
+static int maxfd;
+static int sockfd;
+static int protocol;
+
+static void sockerror(char *s);
+static void x_closesocket(int fd);
+static void dopoll(PJContext *pj);
+#define BUFSIZE 4096
+
+
+
+static void addport(int fd)
+{
+    int nfd = nfdpoll;
+    t_fdpoll *fp;
+    fdpoll = (t_fdpoll *)realloc(fdpoll,
+        (nfdpoll+1) * sizeof(t_fdpoll));
+    fp = fdpoll + nfdpoll;
+    fp->fdp_fd = fd;
+    nfdpoll++;
+    if (fd >= maxfd) maxfd = fd + 1;
+    fp->fdp_outlen = fp->fdp_discard = fp->fdp_gotsemi = 0;
+    if (!(fp->fdp_outbuf = (char*) malloc(BUFSIZE)))
+    {
+        fprintf(stderr, "out of memory");
+        exit(1);
+    }
+    printf("number_connected %d;\n", nfdpoll);
+}
+
+static void rmport(t_fdpoll *x)
+{
+    int nfd = nfdpoll;
+    int i, size = nfdpoll * sizeof(t_fdpoll);
+    t_fdpoll *fp;
+    for (i = nfdpoll, fp = fdpoll; i--; fp++)
+    {
+        if (fp == x)
+        {
+            x_closesocket(fp->fdp_fd);
+            free(fp->fdp_outbuf);
+            while (i--)
+            {
+                fp[0] = fp[1];
+                fp++;
+            }
+            fdpoll = (t_fdpoll *)realloc(fdpoll,
+                (nfdpoll-1) * sizeof(t_fdpoll));
+            nfdpoll--;
+            printf("number_connected %d;\n", nfdpoll);
+            return;
+        }
+    }
+    fprintf(stderr, "warning: item removed from poll list but not found");
+}
+
+static void doconnect(void)
+{
+    int fd = accept(sockfd, 0, 0);
+    if (fd < 0)
+        perror("accept");
+    else addport(fd);
+}
+
+static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
+{
+    int i;
+    int outlen = x->fdp_outlen;
+    char *outbuf = x->fdp_outbuf;
+    
+    for (i = 0 ; i < len ; i++)
+    {
+        char c = inbuf[i];
+        
+        if((c != '\n') || (!x->fdp_gotsemi))
+            outbuf[outlen++] = c;
+        x->fdp_gotsemi = 0; 
+        if (outlen >= (BUFSIZE-1)) /*output buffer overflow; reserve 1 for '\n' */
+        {
+            fprintf(stderr, "pdreceive: message too long; discarding\n");
+            outlen = 0;
+            x->fdp_discard = 1;
+        }  
+            /* search for a semicolon.   */
+        if (c == ';')
+        {
+            /* outbuf[outlen++] = '\n'; */
+            outbuf[outlen++] = '\0';  /* null terminated for atoi */
+            if (!x->fdp_discard)
+            {
+                pj->snd.a = atoi(outbuf);
+                /* debug */
+                /* 
+                outbuf[outlen] = '\n';
+                write(1, outbuf, outlen);
+                */
+            } /* if (!x->fdp_discard) */
+
+            outlen = 0;
+            x->fdp_discard = 0;
+            x->fdp_gotsemi = 1;
+        } /* if (c == ';') */
+    } /* for */
+
+    x->fdp_outlen = outlen;
+    return (0);
+}
+
+static void tcpread(t_fdpoll *x, PJContext *pj)
+{
+    int  ret;
+    char inbuf[BUFSIZE];
+
+    ret = recv(x->fdp_fd, inbuf, BUFSIZE, 0);
+    if (ret < 0)
+    {
+        sockerror("recv (tcp)");
+        rmport(x);
+    }
+    else if (ret == 0)
+        rmport(x);
+    else tcpmakeoutput(x, inbuf, ret, pj);
+}
+
+static void sockerror(char *s)
+{
+    int err = errno;
+    fprintf(stderr, "%s: %s (%d)\n", s, strerror(err), err);
+}
+
+static void x_closesocket(int fd)
+{
+    close(fd);
+}
+
+static void dopoll(PJContext *pj)
+{
+    int i;
+    t_fdpoll *fp;
+    fd_set readset, writeset, exceptset;
+    FD_ZERO(&writeset);
+    FD_ZERO(&readset);
+    FD_ZERO(&exceptset);
+
+    FD_SET(sockfd, &readset);
+    for (fp = fdpoll, i = nfdpoll; i--; fp++)
+        FD_SET(fp->fdp_fd, &readset);
+    if (select(maxfd+1, &readset, &writeset, &exceptset, 0) < 0)
+    {
+        perror("select");
+        exit(1);
+    }
+    for (i = 0; i < nfdpoll; i++)
+        if (FD_ISSET(fdpoll[i].fdp_fd, &readset))
+            tcpread(&fdpoll[i], pj);
+    if (FD_ISSET(sockfd, &readset))
+        doconnect();
+}
+/* PDRCV */
 
 #define PJDebug(pj, printf_arg) ((pj)->verbose.debug ? (printf printf_arg) : 0)
 
@@ -115,13 +303,53 @@ int PJContext_Construct(PJContext *pj)
     pj->mouse.x = 0;
     pj->mouse.y = 0;
     pj->mouse.fd = open(MOUSE_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
+    /* PDRCV GND */
+    pj->snd.a = 0;
+    /* */
     pj->time_origin = GetCurrentTimeInMilliSecond();
     pj->frame = 0;
     pj->verbose.render_time = 0;
     pj->verbose.debug = 0;
     pj->scaling.numer = scaling_numer;
     pj->scaling.denom = scaling_denom;
+    /* PDRCV GND */
+    PJContext_Listen();
+    /* */
     return 0;
+}
+
+void PJContext_Listen()
+{
+    int portno = 6666 ;
+    struct sockaddr_in server;
+    int nretry = 10;
+    protocol = SOCK_STREAM;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+    {
+        sockerror("socket()");
+        exit(1);
+    }
+    maxfd = sockfd + 1;
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+
+        /* assign client port number */
+    server.sin_port = htons((unsigned short)portno);
+
+        /* name the socket */
+    if (bind(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
+    {
+        sockerror("bind");
+        x_closesocket(sockfd);
+        return (0);
+    }
+    if (listen(sockfd, 5) < 0)
+    {
+         sockerror("listen");
+         x_closesocket(sockfd);
+         exit(1);
+    }
 }
 
 void PJContext_Destruct(PJContext *pj)
@@ -250,6 +478,12 @@ static int PJContext_ReloadAndRebuildShadersIfNeed(PJContext *pj)
     return 0;
 }
 
+/* DUMMY FOR NOW .. */ 
+static void PJContext_UpdateSocket(PJContext *pj)
+{
+
+}
+
 static void PJContext_UpdateMousePosition(PJContext *pj)
 {
     int i;
@@ -307,15 +541,18 @@ static void PJContext_SetUniforms(PJContext *pj)
 {
     double t;
     double mouse_x, mouse_y;
+    double snd_a,
     int width, height;
 
     t = GetCurrentTimeInMilliSecond() - pj->time_origin;
+
+    snd_a = (double)pj->snd.a;
 
     Graphics_GetWindowSize(pj->graphics, &width, &height);
     mouse_x = (double)pj->mouse.x / width;
     mouse_y = (double)pj->mouse.y / height;
 
-    Graphics_SetUniforms(pj->graphics, t / 1000.0,
+    Graphics_SetUniforms(pj->graphics, t / 1000.0, snd_a,
                          mouse_x, mouse_y, drand48());
 }
 
@@ -342,6 +579,7 @@ static int PJContext_Update(PJContext *pj)
     if (PJContext_ReloadAndRebuildShadersIfNeed(pj)) {
         return 1;
     }
+    dopoll(pj);
     PJContext_UpdateMousePosition(pj);
     PJContext_SetUniforms(pj);
     PJContext_Render(pj);

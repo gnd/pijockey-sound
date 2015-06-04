@@ -85,6 +85,7 @@ RenderLayer *Graphics_GetRenderLayer(Graphics *g, int layer_index);
 int Graphics_BuildRenderLayer(Graphics *g, int layer_index);
 
 void Graphics_SetUniforms(Graphics *g, double t,
+			  double snd_a,
                           double mouse_x, double mouse_y,
                           double random);
 void Graphics_Render(Graphics *g);
