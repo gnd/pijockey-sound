@@ -375,6 +375,8 @@ static int PJContext_PrepareMainLoop(PJContext *pj)
 
 static void PJContext_MainLoop(PJContext *pj)
 {
+    /* start in fullscreen mode */
+    PJContext_SwitchFullscreen(pj); 
     for (;;) {
         switch (getchar()) {
         case 'Q':
