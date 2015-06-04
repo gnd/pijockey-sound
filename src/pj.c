@@ -541,7 +541,7 @@ static void PJContext_SetUniforms(PJContext *pj)
 {
     double t;
     double mouse_x, mouse_y;
-    double snd_a,
+    double snd_a;
     int width, height;
 
     t = GetCurrentTimeInMilliSecond() - pj->time_origin;
