@@ -198,11 +198,18 @@ static void tcpread(t_fdpoll *x, PJContext *pj)
     int  ret;
     char inbuf[BUFSIZE];
 
-    ret = recv(x->fdp_fd, inbuf, BUFSIZE, 0);
+    /* using read() instead
+    ret = recv(x->fdp_fd, inbuf, BUFSIZE, 0); 
     if (ret < 0)
-    {
+    {   
         sockerror("recv (tcp)");
-        rmport(x);
+        rmport(x); 
+    }
+    ret = read(x->fdp_fd, inbuf, BUFSIZE); 
+    */
+    if ((ret = read(x->fdp_fd, inbuf, BUFSIZE)) < 0) { 
+        if (errno != EWOULDBLOCK) 
+            sockerror("read error on socket"); 
     }
     else if (ret == 0)
         rmport(x);
@@ -325,11 +332,14 @@ void PJContext_Listen()
     int nretry = 10;
     protocol = SOCK_STREAM;
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    /* non-blocking port */
     if (sockfd < 0)
     {
         sockerror("socket()");
         exit(1);
     }
+    int val = fcntl(sockfd, F_GETFL, 0); 
+    fcntl(sockfd, F_SETFL, val | O_NONBLOCK);
     maxfd = sockfd + 1;
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
