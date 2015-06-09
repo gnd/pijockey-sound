@@ -237,6 +237,8 @@ static void dopoll(PJContext *pj)
     FD_ZERO(&exceptset);
 
     FD_SET(sockfd, &readset);
+    FD_SET(fileno(stdin), &readset);
+    /* FD_SET(pj->mouse.fd, &readset);*/
     for (fp = fdpoll, i = nfdpoll; i--; fp++)
         FD_SET(fp->fdp_fd, &readset);
     if (select(maxfd+1, &readset, &writeset, &exceptset, 0) < 0)
@@ -589,11 +591,12 @@ static int PJContext_Update(PJContext *pj)
     if (PJContext_ReloadAndRebuildShadersIfNeed(pj)) {
         return 1;
     }
-    dopoll(pj);
+    /*dopoll(pj);*/
     PJContext_UpdateMousePosition(pj);
     PJContext_SetUniforms(pj);
     PJContext_Render(pj);
     PJContext_AdvanceFrame(pj);
+    dopoll(pj);
     return 0;
 }
 
