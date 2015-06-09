@@ -40,7 +40,7 @@ struct RenderLayer_ {
     GLuint framebuffer;
     struct {
         GLuint vertex_coord;
-        GLuint snd;
+        GLuint snd_a;
         GLuint mouse;
         GLuint time;
         GLuint resolution;
@@ -321,7 +321,7 @@ static int RenderLayer_BuildProgram(RenderLayer *layer,
     glUseProgram(layer->program);
     layer->attr.vertex_coord = glGetAttribLocation(layer->program, "vertex_coord");
     layer->attr.time = glGetUniformLocation(layer->program, "time");
-    layer->attr.snd = glGetUniformLocation(layer->program, "snd");
+    layer->attr.snd_a = glGetUniformLocation(layer->program, "snd_a");
     layer->attr.mouse = glGetUniformLocation(layer->program, "mouse");
     layer->attr.resolution = glGetUniformLocation(layer->program, "resolution");
     layer->attr.backbuffer = glGetUniformLocation(layer->program, "backbuffer");
@@ -739,7 +739,7 @@ void Graphics_SetUniforms(Graphics *g, double t,
         glUseProgram(p->program);
         glUniform1f(p->attr.time, t);
         glUniform2f(p->attr.resolution, (double)width, (double)height);
-        glUniform1f(p->attr.snd, snd_a);
+        glUniform1f(p->attr.snd_a, snd_a);
         glUniform2f(p->attr.mouse, mouse_x, mouse_y);
         glUniform1f(p->attr.rand, random);
         glUseProgram(0);

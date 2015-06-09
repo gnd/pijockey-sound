@@ -59,7 +59,7 @@ struct PJContext_ {
         int fd;
     } mouse;
     struct {
-        int a;
+        float a;
     } snd;
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
@@ -154,6 +154,7 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
     int i;
     int outlen = x->fdp_outlen;
     char *outbuf = x->fdp_outbuf;
+    pj->snd.a = 0;
     
     for (i = 0 ; i < len ; i++)
     {
@@ -175,11 +176,9 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
             outbuf[outlen++] = '\0';  /* null terminated for atoi */
             if (!x->fdp_discard)
             {
-                pj->snd.a = atoi(outbuf);
-                /* debug */
-                /* 
-                outbuf[outlen] = '\n';
-                write(1, outbuf, outlen);
+                pj->snd.a = strtof(outbuf,NULL);
+                /* debug
+                fprintf(stderr, "set snd to %f ", pj->snd.a);
                 */
             } /* if (!x->fdp_discard) */
 
