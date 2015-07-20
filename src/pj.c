@@ -4,7 +4,6 @@
 +- non-blocking receiving
 +- close socket on exit
 +- pass only snd to dopoll()
-+- port number argument
 +- socket into separate file
 +*/
 
@@ -56,6 +55,10 @@ struct PJContext_ {
     Graphics_LAYOUT layout_backup;
     int is_fullscreen;
     int use_backbuffer;
+    int use_tcp;
+    int use_net;
+    int port;
+    int multi;
     struct {
         int x, y;
         int fd;
@@ -98,12 +101,70 @@ static int protocol;
 static void sockerror(char *s);
 static void x_closesocket(int fd);
 static void dopoll(PJContext *pj);
-#define BUFSIZE 256
+#define BUFSIZE 4096
+
+
+static void addport(int fd)
+{
+    int nfd = nfdpoll;
+    t_fdpoll *fp;
+    fdpoll = (t_fdpoll *)realloc(fdpoll,
+        (nfdpoll+1) * sizeof(t_fdpoll));
+    fp = fdpoll + nfdpoll;
+    fp->fdp_fd = fd;
+    nfdpoll++;
+    if (fd >= maxfd) maxfd = fd + 1;
+    fp->fdp_outlen = fp->fdp_discard = fp->fdp_gotsemi = 0;
+    if (!(fp->fdp_outbuf = (char*) malloc(BUFSIZE)))
+    {
+        fprintf(stderr, "out of memory");
+        exit(1);
+    }
+    printf("number_connected %d;\n", nfdpoll);
+}
+
+
+static void rmport(t_fdpoll *x)
+{
+    int nfd = nfdpoll;
+    int i, size = nfdpoll * sizeof(t_fdpoll);
+    t_fdpoll *fp;
+    for (i = nfdpoll, fp = fdpoll; i--; fp++)
+    {
+        if (fp == x)
+        {
+            x_closesocket(fp->fdp_fd);
+            free(fp->fdp_outbuf);
+            while (i--)
+            {
+                fp[0] = fp[1];
+                fp++;
+            }
+            fdpoll = (t_fdpoll *)realloc(fdpoll,
+                (nfdpoll-1) * sizeof(t_fdpoll));
+            nfdpoll--;
+            printf("number_connected %d;\n", nfdpoll);
+            return;
+        }
+    }
+    fprintf(stderr, "warning: item removed from poll list but not found");
+}
+
+
+static void doconnect(void)
+{
+    int fd = accept(sockfd, 0, 0);
+    if (fd < 0)
+        perror("accept");
+    else addport(fd);
+}
+
 
 static void udpread(PJContext *pj)
 {
     char buf[BUFSIZE];
-    int ret = recv(sockfd, buf, BUFSIZE, 0);
+    /* int ret = recv(sockfd, buf, BUFSIZE, 0); */
+    int ret = read(sockfd, buf, BUFSIZE);
     char chan = buf[0]; 
     char val[BUFSIZE];
     int i = 2;
@@ -117,31 +178,116 @@ static void udpread(PJContext *pj)
     }
     else if (ret > 0)
     {
-        while ((buf[i] != ';') && (i < BUFSIZE)) {
-           val[i-2] = buf[i];
-           i++;
+        if (pj->multi)
+        {
+            /* strsep() comes here */
         }
-	/* terminate with \0 */
-        val[i-2] = '\0';
+        else
+	{
+            while ((buf[i] != ';') && (i < BUFSIZE)) {
+                val[i-2] = buf[i];
+                i++;
+            }
+            val[i-2] = '\0';
       
-        switch (chan) {
-            case 'a':
-                pj->snd.a = strtof(val,NULL);
-                break;
-            case 'b':
-                pj->snd.b = strtof(val,NULL);
-                break;
-            case 'c':
-                pj->snd.c = strtof(val,NULL);
-                break;
-            case 'd':
-                pj->snd.d = strtof(val,NULL);
-                break;
-            case 'e':
-                pj->snd.e = strtof(val,NULL);
-                break;
+            switch (chan) {
+                case 'a':
+                    pj->snd.a = strtof(val,NULL);
+                    break;
+                case 'b':
+                    pj->snd.b = strtof(val,NULL);
+                    break;
+                case 'c':
+                    pj->snd.c = strtof(val,NULL);
+                    break;
+                case 'd':
+                    pj->snd.d = strtof(val,NULL);
+                    break;
+                case 'e':
+                    pj->snd.e = strtof(val,NULL);
+                    break;
+            }
         }
     }
+}
+
+
+static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
+{
+    int i;
+    int outlen = x->fdp_outlen;
+    char *outbuf = x->fdp_outbuf;
+    char chan = inbuf[0];
+
+    for (i = 2 ; i < len ; i++)
+    {
+        char c = inbuf[i];
+        if((c != '\n') || (!x->fdp_gotsemi))
+            outbuf[outlen++] = c;
+        x->fdp_gotsemi = 0;
+        if (outlen >= (BUFSIZE-1)) /*output buffer overflow; reserve 1 for '\n' */
+        {
+            fprintf(stderr, "pdreceive: message too long; discarding\n");
+            outlen = 0;
+            x->fdp_discard = 1;
+        }
+        if (c == ';')
+        {
+            outbuf[outlen++] = '\0';
+            if (!x->fdp_discard)
+            {
+                if (pj->multi)
+                {
+                    /* strsep() comes here */
+                }
+                else 
+                {
+                    switch (chan) {
+                        case 'a':
+                            pj->snd.a = strtof(outbuf,NULL);
+                            break;
+                        case 'b':
+                            pj->snd.b = strtof(outbuf,NULL);
+                            break;
+                        case 'c':
+                            pj->snd.c = strtof(outbuf,NULL);
+                            break;
+                        case 'd':
+                            pj->snd.d = strtof(outbuf,NULL);
+                            break;
+                        case 'e':
+                            pj->snd.e = strtof(outbuf,NULL);
+                            break;
+                    }
+                }
+                /* debug
+                fprintf(stderr, "set chan to %c ", chan);
+                */
+            }
+
+            outlen = 0;
+            x->fdp_discard = 0;
+            x->fdp_gotsemi = 1;
+        }
+    }
+
+    x->fdp_outlen = outlen;
+    return (0);
+}
+
+
+static void tcpread(t_fdpoll *x, PJContext *pj)
+{
+    int  ret;
+    char inbuf[BUFSIZE];
+
+    if ((ret = read(x->fdp_fd, inbuf, BUFSIZE)) < 0) { 
+        if (errno != EWOULDBLOCK) 
+            sockerror("read error on socket"); 
+    }
+    else if (ret == 0)
+        rmport(x);
+    else tcpmakeoutput(x, inbuf, ret, pj);
 }
 
 static void sockerror(char *s)
@@ -155,9 +301,10 @@ static void x_closesocket(int fd)
     close(fd);
 }
 
+
 static void dopoll(PJContext *pj)
 {
-    int i;
+    int i;  
     t_fdpoll *fp;
     fd_set readset, writeset, exceptset;
     FD_ZERO(&writeset);
@@ -170,14 +317,28 @@ static void dopoll(PJContext *pj)
     FD_SET(pj->mouse.fd, &readset);
     */
 
+    if (pj->use_tcp) {
+    	for (fp = fdpoll, i = nfdpoll; i--; fp++)
+        	FD_SET(fp->fdp_fd, &readset);
+    }
+
     if (select(maxfd+1, &readset, &writeset, &exceptset, 0) < 0)
-    {
+    {   
         perror("select");
         exit(1);
     }
-    if (FD_ISSET(sockfd, &readset))
-    {
-        udpread(pj);
+    
+    if (pj->use_tcp) {
+	for (i = 0; i < nfdpoll; i++)
+        if (FD_ISSET(fdpoll[i].fdp_fd, &readset))
+            tcpread(&fdpoll[i], pj);
+        if (FD_ISSET(sockfd, &readset))
+            doconnect();
+    } else {
+        if (FD_ISSET(sockfd, &readset))
+        {   
+            udpread(pj);
+        }
     }
 }
 /* PDRCV */
@@ -237,6 +398,10 @@ int PJContext_Construct(PJContext *pj)
     pj->layout_backup = Graphics_LAYOUT_FULLSCREEN;
     pj->is_fullscreen = 0;
     pj->use_backbuffer = 0;
+    pj->use_tcp = 0;
+    pj->use_net = 0;
+    pj->port = 6666;
+    pj->multi = 0;
     pj->mouse.x = 0;
     pj->mouse.y = 0;
     pj->mouse.fd = open(MOUSE_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
@@ -251,23 +416,29 @@ int PJContext_Construct(PJContext *pj)
     pj->verbose.debug = 0;
     pj->scaling.numer = scaling_numer;
     pj->scaling.denom = scaling_denom;
-    /* PDRCV GND */
-    PJContext_Listen();
-    /* */
     return 0;
 }
 
-void PJContext_Listen()
+void PJContext_Listen(int use_tcp, int port)
 {
-    int portno = 6666;
+    int portno = port;
     struct sockaddr_in server;
     int nretry = 10;
-    protocol = SOCK_DGRAM;
-    sockfd = socket(AF_INET, protocol, 0);
+    if (use_tcp) {
+        protocol = SOCK_STREAM;
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    } else {
+        protocol = SOCK_DGRAM;
+        sockfd = socket(AF_INET, protocol, 0);
+    }
     if (sockfd < 0)
-    {
+    {   
         sockerror("socket()");
         exit(1);
+    }
+    if (use_tcp) {
+        int val = fcntl(sockfd, F_GETFL, 0);
+        fcntl(sockfd, F_SETFL, val | O_NONBLOCK);
     }
     maxfd = sockfd + 1;
 
@@ -276,10 +447,18 @@ void PJContext_Listen()
     server.sin_port = htons((unsigned short)portno);
 
     if (bind(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
-    {
+    {   
         sockerror("bind");
         x_closesocket(sockfd);
         return (0);
+    }
+    if (use_tcp) {
+        if (listen(sockfd, 5) < 0)
+        {
+            sockerror("listen");
+            x_closesocket(sockfd);
+            exit(1);
+        }
     }
 }
 
@@ -412,7 +591,6 @@ static int PJContext_ReloadAndRebuildShadersIfNeed(PJContext *pj)
 /* DUMMY FOR NOW .. */ 
 static void PJContext_UpdateSocket(PJContext *pj)
 {
-
 }
 
 static void PJContext_UpdateMousePosition(PJContext *pj)
@@ -520,7 +698,9 @@ static int PJContext_Update(PJContext *pj)
     PJContext_SetUniforms(pj);
     PJContext_Render(pj);
     PJContext_AdvanceFrame(pj);
-    dopoll(pj);
+    if (pj->use_net) {
+    	dopoll(pj);
+    }
     return 0;
 }
 
@@ -659,6 +839,15 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
             Graphics_SetOffscreenWrapMode(g, Graphics_WRAP_MODE_MIRRORED_REPEAT);
         } else if (strcmp(arg, "--backbuffer") == 0) {
             pj->use_backbuffer = 1;
+        } else if (strcmp(arg, "--net") == 0) {
+	    pj->use_net = 1;
+        } else if (strcmp(arg, "--tcp") == 0) {
+            pj->use_tcp = 1;
+        } else if (strcmp(arg, "--port") == 0) {
+            pj->port = strtol(argv[i+1], NULL, 10);
+            i++;
+        } else if (strcmp(arg, "--multi") == 0) {
+            pj->multi = 1;
         } else {
             printf("layer %d: %s\r\n", layer, arg);
             PJContext_AppendLayer(pj, arg);
@@ -667,6 +856,9 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
     }
     Graphics_SetBackbuffer(g, pj->use_backbuffer);
     Graphics_ApplyOffscreenChange(pj->graphics);
+    if (pj->use_net) {
+    	PJContext_Listen(pj->use_tcp, pj->port);
+    }
     return (layer == 0) ? 1 : 0;
 }
 

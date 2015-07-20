@@ -40,7 +40,12 @@ static void PrintCommandUsage(void)
     printf("    --wrap-repeat (default)\r\n");
     printf("    --wrap-mirror_repeat\r\n");
     printf("  backbuffer:\r\n");
-    printf("    --backbuffer   enable backbuffer(default:OFF)\r\n");
+    printf("    --backbuffer   enable backbuffer (default:OFF)\r\n");
+    printf("  network:\r\n");
+    printf("    --net	enable network (default:OFF)\r\n");
+    printf("    --tcp	enable TCP (default:UDP)\r\n");
+    printf("    --port	listen on port (default:6666)\r\n");
+    printf("    --multi process multiple values (default:OFF)\r\n");
     printf("\r\n");
 }
 
