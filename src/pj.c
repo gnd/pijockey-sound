@@ -5,6 +5,8 @@
 +- close socket on exit
 +- pass only snd to dopoll()
 +- socket into separate file
++- fix tcp multi receive
++- move msg parsing away from udpread()
 +*/
 
 #include <stdio.h>
@@ -69,6 +71,11 @@ struct PJContext_ {
 	float c;
 	float d;
 	float e;
+        float f;
+        float g;
+        float h;
+        float i;
+        float j;
     } snd;
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
@@ -163,11 +170,12 @@ static void doconnect(void)
 static void udpread(PJContext *pj)
 {
     char buf[BUFSIZE];
-    /* int ret = recv(sockfd, buf, BUFSIZE, 0); */
     int ret = read(sockfd, buf, BUFSIZE);
     char chan = buf[0]; 
     char val[BUFSIZE];
-    int i = 2;
+    char *running;
+    char *token;
+    int i;
 
     if (ret < 0)
     {
@@ -180,10 +188,52 @@ static void udpread(PJContext *pj)
     {
         if (pj->multi)
         {
-            /* strsep() comes here */
+            i = 0;
+            while ((buf[i] != ';') && (i < BUFSIZE)) {
+                val[i] = buf[i];
+                i++;
+            }
+	    val[i] = ' ';
+            running = strdup(val); 
+
+            token = strsep(&running, " ");
+            pj->snd.a = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.b = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.c = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.d = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.e = strtof(token,NULL);
+	
+            token = strsep(&running, " ");
+            pj->snd.f = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.g = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.h = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.i = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->snd.j = strtof(token,NULL);
+
+            /* debug
+            fprintf(stderr, "set a to %f", pj->snd.a);
+            */
         }
         else
 	{
+            chan = buf[0];
+            i = 2;
             while ((buf[i] != ';') && (i < BUFSIZE)) {
                 val[i-2] = buf[i];
                 i++;
@@ -206,18 +256,40 @@ static void udpread(PJContext *pj)
                 case 'e':
                     pj->snd.e = strtof(val,NULL);
                     break;
+                case 'f':
+                    pj->snd.f = strtof(val,NULL);
+                    break;
+                case 'g':
+                    pj->snd.g = strtof(val,NULL);
+                    break;
+                case 'h':
+                    pj->snd.h = strtof(val,NULL);
+                    break;
+                case 'i':
+                    pj->snd.i = strtof(val,NULL);
+                    break;
+                case 'j':
+                    pj->snd.j = strtof(val,NULL);
+                    break;
             }
         }
     }
 }
 
 
+static int udpmakeoutput(char *buf, PJContext *pj) {
+}
+
+
 static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
 {
+    /* currently multi broken, this is due to TCP expecting several messages in one connection */
     int i;
     int outlen = x->fdp_outlen;
     char *outbuf = x->fdp_outbuf;
     char chan = inbuf[0];
+    char *running;
+    char *token;
 
     for (i = 2 ; i < len ; i++)
     {
@@ -227,21 +299,52 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
         x->fdp_gotsemi = 0;
         if (outlen >= (BUFSIZE-1)) /*output buffer overflow; reserve 1 for '\n' */
         {
-            fprintf(stderr, "pdreceive: message too long; discarding\n");
+            fprintf(stderr, "message too long; discarding\n");
             outlen = 0;
             x->fdp_discard = 1;
         }
         if (c == ';')
         {
-            outbuf[outlen++] = '\0';
             if (!x->fdp_discard)
             {
                 if (pj->multi)
                 {
-                    /* strsep() comes here */
+                    running = strdup(outbuF);
+
+                    token = strsep(&running, " ");
+                    pj->snd.a = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.b = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.c = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.d = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.e = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.f = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.g = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.h = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.i = strtof(token,NULL);
+
+                    token = strsep(&running, " ");
+                    pj->snd.j = strtof(token,NULL);
+
                 }
                 else 
                 {
+                    outbuf[outlen++] = '\0';
                     switch (chan) {
                         case 'a':
                             pj->snd.a = strtof(outbuf,NULL);
@@ -257,6 +360,21 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
                             break;
                         case 'e':
                             pj->snd.e = strtof(outbuf,NULL);
+                            break;
+                        case 'f':
+                            pj->snd.f = strtof(outbuf,NULL);
+                            break;
+                        case 'g':
+                            pj->snd.g = strtof(outbuf,NULL);
+                            break;
+                        case 'h':
+                            pj->snd.h = strtof(outbuf,NULL);
+                            break;
+                        case 'i':
+                            pj->snd.i = strtof(outbuf,NULL);
+                            break;
+                        case 'j':
+                            pj->snd.j = strtof(outbuf,NULL);
                             break;
                     }
                 }
@@ -410,6 +528,11 @@ int PJContext_Construct(PJContext *pj)
     pj->snd.c = 0;
     pj->snd.d = 0;
     pj->snd.e = 0;
+    pj->snd.f = 0;
+    pj->snd.g = 0;
+    pj->snd.h = 0;
+    pj->snd.i = 0;
+    pj->snd.j = 0;
     pj->time_origin = GetCurrentTimeInMilliSecond();
     pj->frame = 0;
     pj->verbose.render_time = 0;
@@ -650,7 +773,7 @@ static void PJContext_SetUniforms(PJContext *pj)
 {
     double t;
     double mouse_x, mouse_y;
-    double snd_a, snd_b, snd_c, snd_d, snd_e;
+    double snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h, snd_i, snd_j;
     int width, height;
 
     t = GetCurrentTimeInMilliSecond() - pj->time_origin;
@@ -660,13 +783,18 @@ static void PJContext_SetUniforms(PJContext *pj)
     snd_c = (double)pj->snd.c;
     snd_d = (double)pj->snd.d;
     snd_e = (double)pj->snd.e;
+    snd_f = (double)pj->snd.f;
+    snd_g = (double)pj->snd.g;
+    snd_h = (double)pj->snd.h;
+    snd_i = (double)pj->snd.i;
+    snd_j = (double)pj->snd.j;
 
     Graphics_GetWindowSize(pj->graphics, &width, &height);
     mouse_x = (double)pj->mouse.x / width;
     mouse_y = (double)pj->mouse.y / height;
 
     Graphics_SetUniforms(pj->graphics, t / 1000.0, 
-                         snd_a, snd_b, snd_c, snd_d, snd_e,
+                         snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h, snd_i, snd_j,
                          mouse_x, mouse_y, drand48());
 }
 
