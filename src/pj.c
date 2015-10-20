@@ -309,7 +309,7 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
             {
                 if (pj->multi)
                 {
-                    running = strdup(outbuF);
+                    running = strdup(outbuf);
 
                     token = strsep(&running, " ");
                     pj->snd.a = strtof(token,NULL);
@@ -378,7 +378,7 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
                             break;
                     }
                 }
-                /* debug
+                /* debug 
                 fprintf(stderr, "set chan to %c ", chan);
                 */
             }
@@ -955,6 +955,8 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
             Graphics_SetOffscreenPixelFormat(g, Graphics_PIXELFORMAT_RGBA8888);
         } else if (strcmp(arg, "--RGB565") == 0) {
             Graphics_SetOffscreenPixelFormat(g, Graphics_PIXELFORMAT_RGB565);
+	} else if (strcmp(arg, "--RGBA4444") == 0) {
+            Graphics_SetOffscreenPixelFormat(g, Graphics_PIXELFORMAT_RGBA4444);
         } else if (strcmp(arg, "--nearestneighbor") == 0) {
             Graphics_SetOffscreenInterpolationMode(g, Graphics_INTERPOLATION_MODE_NEARESTNEIGHBOR);
         } else if (strcmp(arg, "--bilinear") == 0) {

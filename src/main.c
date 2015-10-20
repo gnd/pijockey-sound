@@ -32,6 +32,7 @@ static void PrintCommandUsage(void)
     printf("    --RGB888\r\n");
     printf("    --RGBA8888 (default)\r\n");
     printf("    --RGB565\r\n");
+    printf("    --RGBA4444\r\n");
     printf("  interpolation mode:\r\n");
     printf("    --nearestneighbor (default)\r\n");
     printf("    --bilinear\r\n");
@@ -45,7 +46,7 @@ static void PrintCommandUsage(void)
     printf("    --net	enable network (default:OFF)\r\n");
     printf("    --tcp	enable TCP (default:UDP)\r\n");
     printf("    --port	listen on port (default:6666)\r\n");
-    printf("    --multi process multiple values (default:OFF)\r\n");
+    printf("    --multi	process multiple values (default:OFF)\r\n");
     printf("\r\n");
 }
 
