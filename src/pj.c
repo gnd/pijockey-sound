@@ -108,7 +108,7 @@ static int protocol;
 static void sockerror(char *s);
 static void x_closesocket(int fd);
 static void dopoll(PJContext *pj);
-#define BUFSIZE 4096
+#define BUFSIZE 16384
 
 
 static void addport(int fd)
@@ -433,52 +433,46 @@ static void x_closesocket(int fd)
     close(fd);
 }
 
-
 static void dopoll(PJContext *pj)
 {
-    int i;  
     t_fdpoll *fp;
-    fd_set readset, writeset, exceptset;
-    FD_ZERO(&writeset);
-    FD_ZERO(&readset);
-    FD_ZERO(&exceptset);
-
-    FD_SET(sockfd, &readset);
-    FD_SET(fileno(stdin), &readset);
-    /* no mouse ;)
-    FD_SET(pj->mouse.fd, &readset);
-    */
-
+    fd_set readset;
     struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = 1000;
+    int i;  
 
-
+    FD_ZERO(&readset);
+    FD_SET(fileno(stdin), &readset);
+    /* no mouse FD_SET(pj->mouse.fd, &readset); */
     if (pj->use_tcp) {
     	for (fp = fdpoll, i = nfdpoll; i--; fp++)
         	FD_SET(fp->fdp_fd, &readset);
+    } else {
+        FD_SET(sockfd, &readset);
     }
 
-    if (select(maxfd+1, &readset, &writeset, &exceptset, &tv) < 0)
+    /* timeout on socket - wait 1ms */
+    tv.tv_sec = 0;
+    tv.tv_usec = 100;
+
+    if (select(maxfd+1, &readset, NULL, NULL, &tv) < 0)
     {   
         perror("select");
         exit(1);
-    }
-    
-    if (pj->use_tcp) {
-	for (i = 0; i < nfdpoll; i++)
-        if (FD_ISSET(fdpoll[i].fdp_fd, &readset))
-            tcpread(&fdpoll[i], pj);
-        if (FD_ISSET(sockfd, &readset))
-            doconnect();
     } else {
-        if (FD_ISSET(sockfd, &readset))
-        {   
-            udpread(pj);
+        if (pj->use_tcp) {
+	    for (i = 0; i < nfdpoll; i++)
+            if (FD_ISSET(fdpoll[i].fdp_fd, &readset))
+                tcpread(&fdpoll[i], pj);
+            if (FD_ISSET(sockfd, &readset))
+                doconnect();
+        } else {
+            if (FD_ISSET(sockfd, &readset))
+            {   
+                udpread(pj);
+            }
         }
     }
 }
-/* PDRCV */
 
 #define PJDebug(pj, printf_arg) ((pj)->verbose.debug ? (printf printf_arg) : 0)
 
@@ -727,7 +721,6 @@ static int PJContext_ReloadAndRebuildShadersIfNeed(PJContext *pj)
                 if (ferror(fp) != 0) {
                     PJDebug(pj, ("ferror = %d\r\n", ferror(fp)));
                 }
-                fclose(fp);
                 if (errno != 0) {
                     PJDebug(pj, ("errno = %d\r\n", errno));
                 }
@@ -851,14 +844,17 @@ static int PJContext_Update(PJContext *pj)
     if (PJContext_ReloadAndRebuildShadersIfNeed(pj)) {
         return 1;
     }
-    /*dopoll(pj);*/
-    PJContext_UpdateMousePosition(pj);
+    if (pj->use_net) {
+        dopoll(pj);
+    }
+    /*PJContext_UpdateMousePosition(pj);*/
     PJContext_SetUniforms(pj);
     PJContext_Render(pj);
     PJContext_AdvanceFrame(pj);
-    if (pj->use_net) {
+/*    if (pj->use_net) {
     	dopoll(pj);
     }
+*/
     return 0;
 }
 
