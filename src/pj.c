@@ -170,21 +170,35 @@ static void doconnect(void)
 static void udpread(PJContext *pj)
 {
     char buf[BUFSIZE];
-    int ret = read(sockfd, buf, BUFSIZE);
     char chan = buf[0]; 
     char val[BUFSIZE];
+    ssize_t len;
     char *running;
     char *token;
     int i;
+    int err;
+    errno = 0;
+    len = read(sockfd, buf, BUFSIZE);
+    err = errno;
+    errno = 0;
 
-    if (ret < 0)
+    if (err != 0)
     {
-        /* non-blocking returns -1 and sets errno to EAGAIN or EWOULDBLOCK. */
-        sockerror("recv (udp)");
-        x_closesocket(sockfd);
-        exit(1);
+	 /* non-blocking returns -1 and sets errno to EAGAIN or EWOULDBLOCK. */
+	 if (err == EWOULDBLOCK || err == EAGAIN) {
+                /* nothing to read .. */
+                /*break;*/
+		fprintf(stderr, "would block", NULL);
+		return;
+         } else {
+        	sockerror("recv (udp)");
+        	x_closesocket(sockfd);
+        	exit(1);
+	}
     }
-    else if (ret > 0)
+
+    /* TODO: rework this mess */
+    if (len > 0)
     {
         if (pj->multi)
         {
@@ -435,12 +449,17 @@ static void dopoll(PJContext *pj)
     FD_SET(pj->mouse.fd, &readset);
     */
 
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 1000;
+
+
     if (pj->use_tcp) {
     	for (fp = fdpoll, i = nfdpoll; i--; fp++)
         	FD_SET(fp->fdp_fd, &readset);
     }
 
-    if (select(maxfd+1, &readset, &writeset, &exceptset, 0) < 0)
+    if (select(maxfd+1, &readset, &writeset, &exceptset, &tv) < 0)
     {   
         perror("select");
         exit(1);
@@ -546,41 +565,52 @@ void PJContext_Listen(int use_tcp, int port)
 {
     int portno = port;
     struct sockaddr_in server;
-    int nretry = 10;
+    
     if (use_tcp) {
         protocol = SOCK_STREAM;
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    } else {
-        protocol = SOCK_DGRAM;
-        sockfd = socket(AF_INET, protocol, 0);
-    }
-    if (sockfd < 0)
-    {   
-        sockerror("socket()");
-        exit(1);
-    }
-    if (use_tcp) {
+        if (sockfd < 0)
+        {   
+            sockerror("socket()");
+            exit(1);
+        }
         int val = fcntl(sockfd, F_GETFL, 0);
         fcntl(sockfd, F_SETFL, val | O_NONBLOCK);
-    }
-    maxfd = sockfd + 1;
-
-    server.sin_family = AF_INET;
-    server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons((unsigned short)portno);
-
-    if (bind(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
-    {   
-        sockerror("bind");
-        x_closesocket(sockfd);
-        return (0);
-    }
-    if (use_tcp) {
+        maxfd = sockfd + 1;
+        server.sin_family = AF_INET;
+        server.sin_addr.s_addr = INADDR_ANY;
+        server.sin_port = htons((unsigned short)portno);
+        if (bind(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
+        {   
+            sockerror("bind");
+            x_closesocket(sockfd);
+            return (0);
+        }
         if (listen(sockfd, 5) < 0)
         {
             sockerror("listen");
             x_closesocket(sockfd);
             exit(1);
+        }
+
+    /* UDP */
+    } else {
+        protocol = SOCK_DGRAM;
+        sockfd = socket(AF_INET, protocol, 0);
+	if (sockfd < 0)
+        {   
+            sockerror("socket()");
+            exit(1);
+        }
+	maxfd = sockfd + 1;
+        server.sin_family = AF_INET;
+        server.sin_addr.s_addr = INADDR_ANY;
+        server.sin_port = htons((unsigned short)portno);
+        if (bind(sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
+        {   
+            sockerror("bind");
+            x_closesocket(sockfd);
+            return (0);
         }
     }
 }
