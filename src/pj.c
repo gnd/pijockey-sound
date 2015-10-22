@@ -108,7 +108,7 @@ static int protocol;
 static void sockerror(char *s);
 static void x_closesocket(int fd);
 static void dopoll(PJContext *pj);
-#define BUFSIZE 16384
+#define BUFSIZE 8192
 
 
 static void addport(int fd)
@@ -177,29 +177,42 @@ static void udpread(PJContext *pj)
     char *token;
     int i;
     int err;
-    errno = 0;
-    len = read(sockfd, buf, BUFSIZE);
-    err = errno;
-    errno = 0;
+    len = 1;
+    // clean up this shit
+    while (len > 0) {
+	errno = 0;
+        len = recv(sockfd, buf, BUFSIZE, MSG_DONTWAIT);
+	if (len > 0) {
+		// fprintf(stderr, "entering udpmakeoutput ", NULL);
+                udpmakeoutput(buf, pj);
+        }
 
-    if (err != 0)
-    {
-	 /* non-blocking returns -1 and sets errno to EAGAIN or EWOULDBLOCK. */
-	 if (err == EWOULDBLOCK || err == EAGAIN) {
-                /* nothing to read .. */
-                /*break;*/
-		fprintf(stderr, "would block", NULL);
-		return;
-         } else {
-        	sockerror("recv (udp)");
-        	x_closesocket(sockfd);
-        	exit(1);
-	}
+	err = errno;
+    	errno = 0;
+    	if (err != 0)
+    	{
+        	/* non-blocking returns -1 and sets errno to EAGAIN or EWOULDBLOCK. */
+         	if (err == EWOULDBLOCK || err == EAGAIN) {
+                	/* nothing to read .. */
+                        break;
+         	} else {
+                	sockerror("read(udp)");
+                	x_closesocket(sockfd);
+                	exit(1);
+         	}
+    	}
     }
+}
 
-    /* TODO: rework this mess */
-    if (len > 0)
-    {
+
+void udpmakeoutput(char *buf, PJContext *pj) {
+
+    char chan = buf[0];
+    char val[BUFSIZE];
+    char *running;
+    char *token;
+    int i;
+
         if (pj->multi)
         {
             i = 0;
@@ -207,8 +220,8 @@ static void udpread(PJContext *pj)
                 val[i] = buf[i];
                 i++;
             }
-	    val[i] = ' ';
-            running = strdup(val); 
+            val[i] = ' ';
+            running = strdup(val);
 
             token = strsep(&running, " ");
             pj->snd.a = strtof(token,NULL);
@@ -224,7 +237,7 @@ static void udpread(PJContext *pj)
 
             token = strsep(&running, " ");
             pj->snd.e = strtof(token,NULL);
-	
+
             token = strsep(&running, " ");
             pj->snd.f = strtof(token,NULL);
 
@@ -244,8 +257,8 @@ static void udpread(PJContext *pj)
             fprintf(stderr, "set a to %f", pj->snd.a);
             */
         }
-        else
-	{
+	else
+        {   
             chan = buf[0];
             i = 2;
             while ((buf[i] != ';') && (i < BUFSIZE)) {
@@ -253,7 +266,7 @@ static void udpread(PJContext *pj)
                 i++;
             }
             val[i-2] = '\0';
-      
+
             switch (chan) {
                 case 'a':
                     pj->snd.a = strtof(val,NULL);
@@ -286,12 +299,8 @@ static void udpread(PJContext *pj)
                     pj->snd.j = strtof(val,NULL);
                     break;
             }
-        }
-    }
-}
+	}
 
-
-static int udpmakeoutput(char *buf, PJContext *pj) {
 }
 
 
