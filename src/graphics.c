@@ -40,6 +40,7 @@ struct RenderLayer_ {
     GLuint framebuffer;
     struct {
         GLuint vertex_coord;
+	// SOUND
         GLuint sa;
         GLuint sb;
         GLuint sc;
@@ -48,13 +49,26 @@ struct RenderLayer_ {
         GLuint sf;
         GLuint sg;
         GLuint sh;
-        GLuint si;
-        GLuint sj;
+	// BANG
+	GLuint ba;
+        GLuint bb;
+        GLuint bc;
+        GLuint bd;
+	// KONTROL
+	GLuint ka;
+        GLuint kb;
+        GLuint kc;
+        GLuint kd;
+        GLuint ke;
+        GLuint kf;
+        GLuint kg;
+        GLuint kh;
         GLuint mouse;
         GLuint time;
         GLuint resolution;
         GLuint backbuffer;
-        GLuint rand;
+        GLuint randx;
+	GLuint randy;
         GLuint prev_layer;
         GLuint prev_layer_resolution;
     } attr;
@@ -330,20 +344,33 @@ static int RenderLayer_BuildProgram(RenderLayer *layer,
     glUseProgram(layer->program);
     layer->attr.vertex_coord = glGetAttribLocation(layer->program, "vertex_coord");
     layer->attr.time = glGetUniformLocation(layer->program, "time");
-    layer->attr.sa = glGetUniformLocation(layer->program, "sa");
-    layer->attr.sb = glGetUniformLocation(layer->program, "sb");
-    layer->attr.sc = glGetUniformLocation(layer->program, "sc");
-    layer->attr.sd = glGetUniformLocation(layer->program, "sd");
-    layer->attr.se = glGetUniformLocation(layer->program, "se");
-    layer->attr.sf = glGetUniformLocation(layer->program, "sf");
-    layer->attr.sg = glGetUniformLocation(layer->program, "sg");
-    layer->attr.sh = glGetUniformLocation(layer->program, "sh");
-    layer->attr.si = glGetUniformLocation(layer->program, "si");
-    layer->attr.sj = glGetUniformLocation(layer->program, "sj");
+    layer->attr.sa = glGetUniformLocation(layer->program, "s1");
+    layer->attr.sb = glGetUniformLocation(layer->program, "s2");
+    layer->attr.sc = glGetUniformLocation(layer->program, "s3");
+    layer->attr.sd = glGetUniformLocation(layer->program, "s4");
+    layer->attr.se = glGetUniformLocation(layer->program, "s5");
+    layer->attr.sf = glGetUniformLocation(layer->program, "s6");
+    layer->attr.sg = glGetUniformLocation(layer->program, "s7");
+    layer->attr.sh = glGetUniformLocation(layer->program, "s8");
+    // BANG
+    layer->attr.ba = glGetUniformLocation(layer->program, "b1");
+    layer->attr.bb = glGetUniformLocation(layer->program, "b2");
+    layer->attr.bc = glGetUniformLocation(layer->program, "b3");
+    layer->attr.bd = glGetUniformLocation(layer->program, "b4");
+    // KONTROL
+    layer->attr.ka = glGetUniformLocation(layer->program, "k1");
+    layer->attr.kb = glGetUniformLocation(layer->program, "k2");
+    layer->attr.kc = glGetUniformLocation(layer->program, "k3");
+    layer->attr.kd = glGetUniformLocation(layer->program, "k4");
+    layer->attr.ke = glGetUniformLocation(layer->program, "k5");
+    layer->attr.kf = glGetUniformLocation(layer->program, "k6");
+    layer->attr.kg = glGetUniformLocation(layer->program, "k7");
+    layer->attr.kh = glGetUniformLocation(layer->program, "k8");
     layer->attr.mouse = glGetUniformLocation(layer->program, "mouse");
     layer->attr.resolution = glGetUniformLocation(layer->program, "resolution");
     layer->attr.backbuffer = glGetUniformLocation(layer->program, "backbuffer");
-    layer->attr.rand = glGetUniformLocation(layer->program, "rand");
+    layer->attr.randx= glGetUniformLocation(layer->program, "randx");
+    layer->attr.randy= glGetUniformLocation(layer->program, "randy");
 
     /* no need for 0 layer */
     layer->attr.prev_layer = glGetUniformLocation(layer->program, "prev_layer");
@@ -742,9 +769,11 @@ int Graphics_BuildRenderLayer(Graphics *g, int layer_index)
 }
 
 void Graphics_SetUniforms(Graphics *g, double t,
-		          double snd_a, double snd_b, double snd_c, double snd_d, double snd_e,	double snd_f, double snd_g, double snd_h, double snd_i, double snd_j,
+		          double snd_a, double snd_b, double snd_c, double snd_d, double snd_e,	double snd_f, double snd_g, double snd_h,
+			  double bng_a, double bng_b, double bng_c, double bng_d,
+			  double knt_a, double knt_b, double knt_c, double knt_d, double knt_e, double knt_f, double knt_g, double knt_h,
                           double mouse_x, double mouse_y,
-                          double random)
+                          double randx, double randy)
 {
     int i;
     int width, height;
@@ -757,6 +786,7 @@ void Graphics_SetUniforms(Graphics *g, double t,
         glUseProgram(p->program);
         glUniform1f(p->attr.time, t);
         glUniform2f(p->attr.resolution, (double)width, (double)height);
+	// SOUND
         glUniform1f(p->attr.sa, snd_a);
         glUniform1f(p->attr.sb, snd_b);
         glUniform1f(p->attr.sc, snd_c);
@@ -765,10 +795,23 @@ void Graphics_SetUniforms(Graphics *g, double t,
         glUniform1f(p->attr.sf, snd_f);
         glUniform1f(p->attr.sg, snd_g);
         glUniform1f(p->attr.sh, snd_h);
-        glUniform1f(p->attr.si, snd_i);
-        glUniform1f(p->attr.sj, snd_j);
+	// BANG
+	glUniform1f(p->attr.ba, bng_a);
+        glUniform1f(p->attr.bb, bng_b);
+        glUniform1f(p->attr.bc, bng_c);
+        glUniform1f(p->attr.bd, bng_d);
+	// KONTROL
+	glUniform1f(p->attr.ka, knt_a);
+        glUniform1f(p->attr.kb, knt_b);
+        glUniform1f(p->attr.kc, knt_c);
+        glUniform1f(p->attr.kd, knt_d);
+        glUniform1f(p->attr.ke, knt_e);
+        glUniform1f(p->attr.kf, knt_f);
+        glUniform1f(p->attr.kg, knt_g);
+        glUniform1f(p->attr.kh, knt_h);
         glUniform2f(p->attr.mouse, mouse_x, mouse_y);
-        glUniform1f(p->attr.rand, random);
+        glUniform1f(p->attr.randx, randx);
+	glUniform1f(p->attr.randy, randy);
         glUseProgram(0);
     }
     CHECK_GL();

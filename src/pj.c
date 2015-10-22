@@ -65,8 +65,9 @@ struct PJContext_ {
         int x, y;
         int fd;
     } mouse;
+    // sound a - h 
     struct {
-        float a;
+        float a; 
 	float b;
 	float c;
 	float d;
@@ -74,9 +75,26 @@ struct PJContext_ {
         float f;
         float g;
         float h;
-        float i;
-        float j;
     } snd;
+    // bang a - d 
+    struct {  
+        float a;
+        float b;
+        float c;
+        float d;
+    } bng;
+    // kontrol a - h
+    struct {  
+        float a;
+        float b;
+        float c;
+        float d;
+        float e;
+        float f;
+        float g;
+        float h;
+    } knt;
+
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
     struct {
@@ -243,70 +261,61 @@ void udpmakeoutput(char *buf, PJContext *pj) {
 
             token = strsep(&running, " ");
             pj->snd.g = strtof(token,NULL);
-
-            token = strsep(&running, " ");
+		
+	    token = strsep(&running, " ");
             pj->snd.h = strtof(token,NULL);
 
             token = strsep(&running, " ");
-            pj->snd.i = strtof(token,NULL);
+            pj->bng.a = strtof(token,NULL);
 
             token = strsep(&running, " ");
-            pj->snd.j = strtof(token,NULL);
+            pj->bng.b = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->bng.c = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->bng.d = strtof(token,NULL);
+
+	    token = strsep(&running, " "); 
+            pj->knt.a = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->knt.b = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->knt.c = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->knt.d = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->knt.e = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->knt.f = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->knt.g = strtof(token,NULL);
+
+	    token = strsep(&running, " ");
+            pj->knt.h = strtof(token,NULL);
 
             /* debug
             fprintf(stderr, "set a to %f", pj->snd.a);
             */
         }
-	else
-        {   
-            chan = buf[0];
-            i = 2;
-            while ((buf[i] != ';') && (i < BUFSIZE)) {
-                val[i-2] = buf[i];
-                i++;
-            }
-            val[i-2] = '\0';
 
-            switch (chan) {
-                case 'a':
-                    pj->snd.a = strtof(val,NULL);
-                    break;
-                case 'b':
-                    pj->snd.b = strtof(val,NULL);
-                    break;
-                case 'c':
-                    pj->snd.c = strtof(val,NULL);
-                    break;
-                case 'd':
-                    pj->snd.d = strtof(val,NULL);
-                    break;
-                case 'e':
-                    pj->snd.e = strtof(val,NULL);
-                    break;
-                case 'f':
-                    pj->snd.f = strtof(val,NULL);
-                    break;
-                case 'g':
-                    pj->snd.g = strtof(val,NULL);
-                    break;
-                case 'h':
-                    pj->snd.h = strtof(val,NULL);
-                    break;
-                case 'i':
-                    pj->snd.i = strtof(val,NULL);
-                    break;
-                case 'j':
-                    pj->snd.j = strtof(val,NULL);
-                    break;
-            }
-	}
-
+	/* individual set suspended until needed again */
 }
 
 
 static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
 {
-    /* currently multi broken, this is due to TCP expecting several messages in one connection */
+    /* CURRENTLY BROKEN */
+    /* STREAM HANDLING - BROKEN */
+    /* MULTI - BROKEN */
+    /* INDIVIDUAL - BROKEN */
     int i;
     int outlen = x->fdp_outlen;
     char *outbuf = x->fdp_outbuf;
@@ -358,12 +367,6 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
                     token = strsep(&running, " ");
                     pj->snd.h = strtof(token,NULL);
 
-                    token = strsep(&running, " ");
-                    pj->snd.i = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.j = strtof(token,NULL);
-
                 }
                 else 
                 {
@@ -392,12 +395,6 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
                             break;
                         case 'h':
                             pj->snd.h = strtof(outbuf,NULL);
-                            break;
-                        case 'i':
-                            pj->snd.i = strtof(outbuf,NULL);
-                            break;
-                        case 'j':
-                            pj->snd.j = strtof(outbuf,NULL);
                             break;
                     }
                 }
@@ -541,10 +538,11 @@ int PJContext_Construct(PJContext *pj)
     pj->use_tcp = 0;
     pj->use_net = 0;
     pj->port = 6666;
-    pj->multi = 0;
+    pj->multi = 1;
     pj->mouse.x = 0;
     pj->mouse.y = 0;
     pj->mouse.fd = open(MOUSE_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
+    // SOUND
     pj->snd.a = 0;
     pj->snd.b = 0;
     pj->snd.c = 0;
@@ -553,8 +551,20 @@ int PJContext_Construct(PJContext *pj)
     pj->snd.f = 0;
     pj->snd.g = 0;
     pj->snd.h = 0;
-    pj->snd.i = 0;
-    pj->snd.j = 0;
+    // BANG
+    pj->bng.a = 0;
+    pj->bng.b = 0;
+    pj->bng.c = 0;
+    pj->bng.d = 0;
+    // KONTROL
+    pj->knt.a = 0;
+    pj->knt.b = 0;
+    pj->knt.c = 0;
+    pj->knt.d = 0;
+    pj->knt.e = 0;
+    pj->knt.f = 0;
+    pj->knt.g = 0;
+    pj->knt.h = 0;
     pj->time_origin = GetCurrentTimeInMilliSecond();
     pj->frame = 0;
     pj->verbose.render_time = 0;
@@ -805,7 +815,9 @@ static void PJContext_SetUniforms(PJContext *pj)
 {
     double t;
     double mouse_x, mouse_y;
-    double snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h, snd_i, snd_j;
+    double snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h;
+    double bng_a, bng_b, bng_c, bng_d;
+    double knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h;
     int width, height;
 
     t = GetCurrentTimeInMilliSecond() - pj->time_origin;
@@ -818,16 +830,30 @@ static void PJContext_SetUniforms(PJContext *pj)
     snd_f = (double)pj->snd.f;
     snd_g = (double)pj->snd.g;
     snd_h = (double)pj->snd.h;
-    snd_i = (double)pj->snd.i;
-    snd_j = (double)pj->snd.j;
+
+    bng_a = (double)pj->bng.a;
+    bng_b = (double)pj->bng.b;
+    bng_c = (double)pj->bng.c;
+    bng_d = (double)pj->bng.d;
+
+    knt_a = (double)pj->knt.a;
+    knt_b = (double)pj->knt.b;
+    knt_c = (double)pj->knt.c;
+    knt_d = (double)pj->knt.d;
+    knt_e = (double)pj->knt.e;
+    knt_f = (double)pj->knt.f;
+    knt_g = (double)pj->knt.g;
+    knt_h = (double)pj->knt.h;
 
     Graphics_GetWindowSize(pj->graphics, &width, &height);
     mouse_x = (double)pj->mouse.x / width;
     mouse_y = (double)pj->mouse.y / height;
 
     Graphics_SetUniforms(pj->graphics, t / 1000.0, 
-                         snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h, snd_i, snd_j,
-                         mouse_x, mouse_y, drand48());
+                         snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h,
+			 bng_a, bng_b, bng_c, bng_d,
+			 knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h,
+                         mouse_x, mouse_y, drand48(), drand48());
 }
 
 static void PJContext_Render(PJContext *pj)

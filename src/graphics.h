@@ -85,9 +85,11 @@ RenderLayer *Graphics_GetRenderLayer(Graphics *g, int layer_index);
 int Graphics_BuildRenderLayer(Graphics *g, int layer_index);
 
 void Graphics_SetUniforms(Graphics *g, double t,
-			  double snd_a, double snd_b, double snd_c, double snd_d, double snd_e, double snd_f, double snd_g, double snd_h, double snd_i, double snd_j,
+			  double snd_a, double snd_b, double snd_c, double snd_d, double snd_e, double snd_f, double snd_g, double snd_h,
+			  double bng_a, double bng_b, double bng_c, double bng_d,
+			  double knt_a, double knt_b, double knt_c, double knt_d, double knt_e, double knt_f, double knt_g, double knt_h,
                           double mouse_x, double mouse_y,
-                          double random);
+                          double random_x, double random_y);
 void Graphics_Render(Graphics *g);
 
 void Graphics_SetBackbuffer(Graphics *g, int enable);
