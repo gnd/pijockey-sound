@@ -88,6 +88,10 @@ void Graphics_SetUniforms(Graphics *g, double t,
 			  double snd_a, double snd_b, double snd_c, double snd_d, double snd_e, double snd_f, double snd_g, double snd_h,
 			  double bng_a, double bng_b, double bng_c, double bng_d,
 			  double knt_a, double knt_b, double knt_c, double knt_d, double knt_e, double knt_f, double knt_g, double knt_h,
+			  double glb_a, double glb_b, double glb_c, double glb_d,
+                          double scn2_a, double scn2_b, double scn2_c, double scn2_d, double scn2_e, double scn2_f, double scn2_g, double scn2_h,
+                          double scn3_a, double scn3_b, double scn3_c, double scn3_d, double scn3_e, double scn3_f, double scn3_g, double scn3_h,
+                          double scn4_a, double scn4_b, double scn4_c, double scn4_d, double scn4_e, double scn4_f, double scn4_g, double scn4_h,
                           double mouse_x, double mouse_y,
                           double random_x, double random_y);
 void Graphics_Render(Graphics *g);

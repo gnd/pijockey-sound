@@ -94,6 +94,45 @@ struct PJContext_ {
         float g;
         float h;
     } knt;
+    // glob a - d
+    struct {
+        float a;
+        float b;
+        float c;
+        float d;
+    } glb;
+    // memory
+    struct {
+        float a;
+        float b;
+        float c;
+        float d;
+        float e;
+        float f;
+        float g;
+        float h;
+    } scn2;
+    struct {
+        float a;
+        float b;
+        float c;
+        float d;
+        float e;
+        float f;
+        float g;
+        float h;
+    } scn3; 
+    struct {
+        float a;
+        float b;
+        float c;
+        float d;
+        float e;
+        float f;
+        float g;
+        float h;
+    } scn4; 
+
 
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
@@ -300,6 +339,51 @@ void udpmakeoutput(char *buf, PJContext *pj) {
 
 	    token = strsep(&running, " ");
             pj->knt.h = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->glb.a = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->glb.b = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->glb.c = strtof(token,NULL);
+
+            token = strsep(&running, " ");
+            pj->glb.d = strtof(token,NULL);
+
+	    // MEMORY
+            if ((int)pj->glb.b == 2) {
+                pj->scn2.a = pj->knt.a;
+                pj->scn2.b = pj->knt.b;
+                pj->scn2.c = pj->knt.c;
+                pj->scn2.d = pj->knt.d;
+                pj->scn2.e = pj->knt.e;
+                pj->scn2.f = pj->knt.f;
+                pj->scn2.g = pj->knt.g;
+                pj->scn2.h = pj->knt.h;
+            }
+            if (pj->glb.b == 3) {
+                pj->scn3.a = pj->knt.a;
+                pj->scn3.b = pj->knt.b;
+                pj->scn3.c = pj->knt.c;
+                pj->scn3.d = pj->knt.d;
+                pj->scn3.e = pj->knt.e;
+                pj->scn3.f = pj->knt.f;
+                pj->scn3.g = pj->knt.g;
+                pj->scn3.h = pj->knt.h;
+            }
+            if (pj->glb.b == 4) {
+                pj->scn4.a = pj->knt.a;
+                pj->scn4.b = pj->knt.b;
+                pj->scn4.c = pj->knt.c;
+                pj->scn4.d = pj->knt.d;
+                pj->scn4.e = pj->knt.e;
+                pj->scn4.f = pj->knt.f;
+                pj->scn4.g = pj->knt.g;
+                pj->scn4.h = pj->knt.h;
+            }
+
 
             /* debug
             fprintf(stderr, "set a to %f", pj->snd.a);
@@ -565,6 +649,38 @@ int PJContext_Construct(PJContext *pj)
     pj->knt.f = 0;
     pj->knt.g = 0;
     pj->knt.h = 0;
+    // GLOBALS
+    pj->glb.a = 0;
+    pj->glb.b = 0;
+    pj->glb.c = 0;
+    pj->glb.d = 0;
+    // MEMORY
+        // MEMORY
+    pj->scn2.a = 0;
+    pj->scn2.b = 0;
+    pj->scn2.c = 0;
+    pj->scn2.d = 0;
+    pj->scn2.e = 0;
+    pj->scn2.f = 0;
+    pj->scn2.g = 0;
+    pj->scn2.h = 0;
+    pj->scn3.a = 0;
+    pj->scn3.b = 0;
+    pj->scn3.c = 0;
+    pj->scn3.d = 0;
+    pj->scn3.e = 0;
+    pj->scn3.f = 0;
+    pj->scn3.g = 0;
+    pj->scn3.h = 0;
+    pj->scn4.a = 0;
+    pj->scn4.b = 0;
+    pj->scn4.c = 0;
+    pj->scn4.d = 0;
+    pj->scn4.e = 0;
+    pj->scn4.f = 0;
+    pj->scn4.g = 0;
+    pj->scn4.h = 0;
+
     pj->time_origin = GetCurrentTimeInMilliSecond();
     pj->frame = 0;
     pj->verbose.render_time = 0;
@@ -818,6 +934,10 @@ static void PJContext_SetUniforms(PJContext *pj)
     double snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h;
     double bng_a, bng_b, bng_c, bng_d;
     double knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h;
+    double glb_a, glb_b, glb_c, glb_d;
+    double scn2_a, scn2_b, scn2_c, scn2_d, scn2_e, scn2_f, scn2_g, scn2_h;
+    double scn3_a, scn3_b, scn3_c, scn3_d, scn3_e, scn3_f, scn3_g, scn3_h;
+    double scn4_a, scn4_b, scn4_c, scn4_d, scn4_e, scn4_f, scn4_g, scn4_h;
     int width, height;
 
     t = GetCurrentTimeInMilliSecond() - pj->time_origin;
@@ -845,6 +965,36 @@ static void PJContext_SetUniforms(PJContext *pj)
     knt_g = (double)pj->knt.g;
     knt_h = (double)pj->knt.h;
 
+    glb_a = (double)pj->glb.a;
+    glb_b = (double)pj->glb.b;
+    glb_c = (double)pj->glb.c;
+    glb_d = (double)pj->glb.d;
+
+    scn2_a = (double)pj->scn2.a;
+    scn2_b = (double)pj->scn2.b;
+    scn2_c = (double)pj->scn2.c;
+    scn2_d = (double)pj->scn2.d;
+    scn2_e = (double)pj->scn2.e;
+    scn2_f = (double)pj->scn2.f;
+    scn2_g = (double)pj->scn2.g;
+    scn2_h = (double)pj->scn2.h;
+    scn3_a = (double)pj->scn3.a;
+    scn3_b = (double)pj->scn3.b;
+    scn3_c = (double)pj->scn3.c;
+    scn3_d = (double)pj->scn3.d;
+    scn3_e = (double)pj->scn3.e;
+    scn3_f = (double)pj->scn3.f;
+    scn3_g = (double)pj->scn3.g;
+    scn3_h = (double)pj->scn3.h;
+    scn4_a = (double)pj->scn4.a;
+    scn4_b = (double)pj->scn4.b;
+    scn4_c = (double)pj->scn4.c;
+    scn4_d = (double)pj->scn4.d;
+    scn4_e = (double)pj->scn4.e;
+    scn4_f = (double)pj->scn4.f;
+    scn4_g = (double)pj->scn4.g;
+    scn4_h = (double)pj->scn4.h;
+
     Graphics_GetWindowSize(pj->graphics, &width, &height);
     mouse_x = (double)pj->mouse.x / width;
     mouse_y = (double)pj->mouse.y / height;
@@ -853,6 +1003,10 @@ static void PJContext_SetUniforms(PJContext *pj)
                          snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h,
 			 bng_a, bng_b, bng_c, bng_d,
 			 knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h,
+			 glb_a, glb_b, glb_c, glb_d, 
+                         scn2_a, scn2_b, scn2_c, scn2_d, scn2_e, scn2_f, scn2_g, scn2_h,
+                         scn3_a, scn3_b, scn3_c, scn3_d, scn3_e, scn3_f, scn3_g, scn3_h,
+                         scn4_a, scn4_b, scn4_c, scn4_d, scn4_e, scn4_f, scn4_g, scn4_h,
                          mouse_x, mouse_y, drand48(), drand48());
 }
 

@@ -63,6 +63,39 @@ struct RenderLayer_ {
         GLuint kf;
         GLuint kg;
         GLuint kh;
+	// GLOBAL
+	GLuint ga;
+        GLuint gb;
+        GLuint gc;
+        GLuint gd;
+	// MEMORY
+        GLuint scn2_a;
+        GLuint scn2_b;
+        GLuint scn2_c;
+        GLuint scn2_d;
+        GLuint scn2_e;
+        GLuint scn2_f;
+        GLuint scn2_g;
+        GLuint scn2_h;
+
+        GLuint scn3_a;
+        GLuint scn3_b;
+        GLuint scn3_c;
+        GLuint scn3_d;
+        GLuint scn3_e;
+        GLuint scn3_f;
+        GLuint scn3_g;
+        GLuint scn3_h;
+
+        GLuint scn4_a;
+        GLuint scn4_b;
+        GLuint scn4_c;
+        GLuint scn4_d;
+        GLuint scn4_e;
+        GLuint scn4_f;
+        GLuint scn4_g;
+        GLuint scn4_h;
+
         GLuint mouse;
         GLuint time;
         GLuint resolution;
@@ -366,6 +399,40 @@ static int RenderLayer_BuildProgram(RenderLayer *layer,
     layer->attr.kf = glGetUniformLocation(layer->program, "k6");
     layer->attr.kg = glGetUniformLocation(layer->program, "k7");
     layer->attr.kh = glGetUniformLocation(layer->program, "k8");
+    // GLOBAL
+    layer->attr.ga = glGetUniformLocation(layer->program, "g1");
+    layer->attr.gb = glGetUniformLocation(layer->program, "g2");
+    layer->attr.gc = glGetUniformLocation(layer->program, "g3");
+    layer->attr.gd = glGetUniformLocation(layer->program, "g4");
+    // MEMORY
+    layer->attr.scn2_a = glGetUniformLocation(layer->program, "scn2_a");
+    layer->attr.scn2_b = glGetUniformLocation(layer->program, "scn2_b");
+    layer->attr.scn2_c = glGetUniformLocation(layer->program, "scn2_c");
+    layer->attr.scn2_d = glGetUniformLocation(layer->program, "scn2_d");
+    layer->attr.scn2_e = glGetUniformLocation(layer->program, "scn2_e");
+    layer->attr.scn2_f = glGetUniformLocation(layer->program, "scn2_f");
+    layer->attr.scn2_g = glGetUniformLocation(layer->program, "scn2_g");
+    layer->attr.scn2_h = glGetUniformLocation(layer->program, "scn2_h");
+
+    layer->attr.scn3_a = glGetUniformLocation(layer->program, "scn3_a");
+    layer->attr.scn3_b = glGetUniformLocation(layer->program, "scn3_b");
+    layer->attr.scn3_c = glGetUniformLocation(layer->program, "scn3_c");
+    layer->attr.scn3_d = glGetUniformLocation(layer->program, "scn3_d");
+    layer->attr.scn3_e = glGetUniformLocation(layer->program, "scn3_e");
+    layer->attr.scn3_f = glGetUniformLocation(layer->program, "scn3_f");
+    layer->attr.scn3_g = glGetUniformLocation(layer->program, "scn3_g");
+    layer->attr.scn3_h = glGetUniformLocation(layer->program, "scn3_h");
+
+    layer->attr.scn4_a = glGetUniformLocation(layer->program, "scn4_a");
+    layer->attr.scn4_b = glGetUniformLocation(layer->program, "scn4_b");
+    layer->attr.scn4_c = glGetUniformLocation(layer->program, "scn4_c");
+    layer->attr.scn4_d = glGetUniformLocation(layer->program, "scn4_d");
+    layer->attr.scn4_e = glGetUniformLocation(layer->program, "scn4_e");
+    layer->attr.scn4_f = glGetUniformLocation(layer->program, "scn4_f");
+    layer->attr.scn4_g = glGetUniformLocation(layer->program, "scn4_g");
+    layer->attr.scn4_h = glGetUniformLocation(layer->program, "scn4_h");
+
+
     layer->attr.mouse = glGetUniformLocation(layer->program, "mouse");
     layer->attr.resolution = glGetUniformLocation(layer->program, "resolution");
     layer->attr.backbuffer = glGetUniformLocation(layer->program, "backbuffer");
@@ -772,6 +839,10 @@ void Graphics_SetUniforms(Graphics *g, double t,
 		          double snd_a, double snd_b, double snd_c, double snd_d, double snd_e,	double snd_f, double snd_g, double snd_h,
 			  double bng_a, double bng_b, double bng_c, double bng_d,
 			  double knt_a, double knt_b, double knt_c, double knt_d, double knt_e, double knt_f, double knt_g, double knt_h,
+			  double glb_a, double glb_b, double glb_c, double glb_d,
+			  double scn2_a, double scn2_b, double scn2_c, double scn2_d, double scn2_e, double scn2_f, double scn2_g, double scn2_h,
+			  double scn3_a, double scn3_b, double scn3_c, double scn3_d, double scn3_e, double scn3_f, double scn3_g, double scn3_h,
+			  double scn4_a, double scn4_b, double scn4_c, double scn4_d, double scn4_e, double scn4_f, double scn4_g, double scn4_h,
                           double mouse_x, double mouse_y,
                           double randx, double randy)
 {
@@ -812,6 +883,41 @@ void Graphics_SetUniforms(Graphics *g, double t,
         glUniform2f(p->attr.mouse, mouse_x, mouse_y);
         glUniform1f(p->attr.randx, randx);
 	glUniform1f(p->attr.randy, randy);
+	// BANG
+        glUniform1f(p->attr.ga, glb_a);
+        glUniform1f(p->attr.gb, glb_b);
+        glUniform1f(p->attr.gc, glb_c);
+        glUniform1f(p->attr.gd, glb_d);
+
+	// MEMORY
+	glUniform1f(p->attr.scn2_a, scn2_a);
+	glUniform1f(p->attr.scn2_b, scn2_b);
+	glUniform1f(p->attr.scn2_c, scn2_c);
+	glUniform1f(p->attr.scn2_d, scn2_d);
+	glUniform1f(p->attr.scn2_e, scn2_e);
+	glUniform1f(p->attr.scn2_f, scn2_f);
+	glUniform1f(p->attr.scn2_g, scn2_g);
+	glUniform1f(p->attr.scn2_h, scn2_h);
+
+	glUniform1f(p->attr.scn3_a, scn3_a);
+	glUniform1f(p->attr.scn3_b, scn3_b);
+	glUniform1f(p->attr.scn3_c, scn3_c);
+	glUniform1f(p->attr.scn3_d, scn3_d);
+	glUniform1f(p->attr.scn3_e, scn3_e);
+	glUniform1f(p->attr.scn3_f, scn3_f);
+	glUniform1f(p->attr.scn3_g, scn3_g);
+	glUniform1f(p->attr.scn3_h, scn3_h);
+
+	glUniform1f(p->attr.scn4_a, scn4_a);
+	glUniform1f(p->attr.scn4_b, scn4_b);
+	glUniform1f(p->attr.scn4_c, scn4_c);
+	glUniform1f(p->attr.scn4_d, scn4_d);
+	glUniform1f(p->attr.scn4_e, scn4_e);
+	glUniform1f(p->attr.scn4_f, scn4_f);
+	glUniform1f(p->attr.scn4_g, scn4_g);
+	glUniform1f(p->attr.scn4_h, scn4_h);
+
+
         glUseProgram(0);
     }
     CHECK_GL();
