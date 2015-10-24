@@ -111,6 +111,26 @@ struct PJContext_ {
         float f;
         float g;
         float h;
+    } scn0;
+    struct {
+        float a;
+        float b;
+        float c;
+        float d;
+        float e;
+        float f;
+        float g;
+        float h;
+    } scn1;
+    struct {
+        float a;
+        float b;
+        float c;
+        float d;
+        float e;
+        float f;
+        float g;
+        float h;
     } scn2;
     struct {
         float a;
@@ -316,30 +336,6 @@ void udpmakeoutput(char *buf, PJContext *pj) {
             token = strsep(&running, " ");
             pj->bng.d = strtof(token,NULL);
 
-	    token = strsep(&running, " "); 
-            pj->knt.a = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->knt.b = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->knt.c = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->knt.d = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->knt.e = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->knt.f = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->knt.g = strtof(token,NULL);
-
-	    token = strsep(&running, " ");
-            pj->knt.h = strtof(token,NULL);
-
             token = strsep(&running, " ");
             pj->glb.a = strtof(token,NULL);
 
@@ -353,37 +349,111 @@ void udpmakeoutput(char *buf, PJContext *pj) {
             pj->glb.d = strtof(token,NULL);
 
 	    // MEMORY
-            if ((int)pj->glb.b == 2) {
-                pj->scn2.a = pj->knt.a;
-                pj->scn2.b = pj->knt.b;
-                pj->scn2.c = pj->knt.c;
-                pj->scn2.d = pj->knt.d;
-                pj->scn2.e = pj->knt.e;
-                pj->scn2.f = pj->knt.f;
-                pj->scn2.g = pj->knt.g;
-                pj->scn2.h = pj->knt.h;
-            }
-            if (pj->glb.b == 3) {
-                pj->scn3.a = pj->knt.a;
-                pj->scn3.b = pj->knt.b;
-                pj->scn3.c = pj->knt.c;
-                pj->scn3.d = pj->knt.d;
-                pj->scn3.e = pj->knt.e;
-                pj->scn3.f = pj->knt.f;
-                pj->scn3.g = pj->knt.g;
-                pj->scn3.h = pj->knt.h;
-            }
-            if (pj->glb.b == 4) {
-                pj->scn4.a = pj->knt.a;
-                pj->scn4.b = pj->knt.b;
-                pj->scn4.c = pj->knt.c;
-                pj->scn4.d = pj->knt.d;
-                pj->scn4.e = pj->knt.e;
-                pj->scn4.f = pj->knt.f;
-                pj->scn4.g = pj->knt.g;
-                pj->scn4.h = pj->knt.h;
-            }
-
+            if ((int)pj->glb.b == 0) {
+                token = strsep(&running, " ");
+                pj->scn0.a = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->scn0.b = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->scn0.c = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->scn0.d = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->scn0.e = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->scn0.f = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->scn0.g = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->scn0.h = strtof(token,NULL);
+            } else
+            if ((int)pj->glb.b == 1) {
+	        token = strsep(&running, " ");
+                pj->scn1.a = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn1.b = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn1.c = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn1.d = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn1.e = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn1.f = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn1.g = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn1.h = strtof(token,NULL);
+            } else if ((int)pj->glb.b == 2) {
+	        token = strsep(&running, " ");
+                pj->scn2.a = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn2.b = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn2.c = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn2.d = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn2.e = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn2.f = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn2.g = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn2.h = strtof(token,NULL);
+            } else if ((int)pj->glb.b == 3) {
+	        token = strsep(&running, " ");
+                pj->scn3.a = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn3.b = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn3.c = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn3.d = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn3.e = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn3.f = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn3.g = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn3.h = strtof(token,NULL);
+            } else if ((int)pj->glb.b == 4) {
+	        token = strsep(&running, " ");
+                pj->scn4.a = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn4.b = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn4.c = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn4.d = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn4.e = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn4.f = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn4.g = strtof(token,NULL);
+	        token = strsep(&running, " ");
+                pj->scn4.h = strtof(token,NULL);
+            } else {
+		// PASS TO PJ
+      	        token = strsep(&running, " ");
+                pj->knt.a = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->knt.b = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->knt.c = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->knt.d = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->knt.e = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->knt.f = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->knt.g = strtof(token,NULL);
+                token = strsep(&running, " ");
+                pj->knt.h = strtof(token,NULL);
+	    }
 
             /* debug
             fprintf(stderr, "set a to %f", pj->snd.a);
@@ -655,7 +725,22 @@ int PJContext_Construct(PJContext *pj)
     pj->glb.c = 0;
     pj->glb.d = 0;
     // MEMORY
-        // MEMORY
+    pj->scn0.a = 0;
+    pj->scn0.b = 0;
+    pj->scn0.c = 0;
+    pj->scn0.d = 0;
+    pj->scn0.e = 0;
+    pj->scn0.f = 0;
+    pj->scn0.g = 0;
+    pj->scn0.h = 0;
+    pj->scn1.a = 0;
+    pj->scn1.b = 0;
+    pj->scn1.c = 0;
+    pj->scn1.d = 0;
+    pj->scn1.e = 0;
+    pj->scn1.f = 0;
+    pj->scn1.g = 0;
+    pj->scn1.h = 0;
     pj->scn2.a = 0;
     pj->scn2.b = 0;
     pj->scn2.c = 0;
@@ -869,11 +954,6 @@ static int PJContext_ReloadAndRebuildShadersIfNeed(PJContext *pj)
     return 0;
 }
 
-/* DUMMY FOR NOW .. */ 
-static void PJContext_UpdateSocket(PJContext *pj)
-{
-}
-
 static void PJContext_UpdateMousePosition(PJContext *pj)
 {
     int i;
@@ -935,6 +1015,8 @@ static void PJContext_SetUniforms(PJContext *pj)
     double bng_a, bng_b, bng_c, bng_d;
     double knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h;
     double glb_a, glb_b, glb_c, glb_d;
+    double scn0_a, scn0_b, scn0_c, scn0_d, scn0_e, scn0_f, scn0_g, scn0_h;
+    double scn1_a, scn1_b, scn1_c, scn1_d, scn1_e, scn1_f, scn1_g, scn1_h;
     double scn2_a, scn2_b, scn2_c, scn2_d, scn2_e, scn2_f, scn2_g, scn2_h;
     double scn3_a, scn3_b, scn3_c, scn3_d, scn3_e, scn3_f, scn3_g, scn3_h;
     double scn4_a, scn4_b, scn4_c, scn4_d, scn4_e, scn4_f, scn4_g, scn4_h;
@@ -970,6 +1052,22 @@ static void PJContext_SetUniforms(PJContext *pj)
     glb_c = (double)pj->glb.c;
     glb_d = (double)pj->glb.d;
 
+    scn0_a = (double)pj->scn0.a;
+    scn0_b = (double)pj->scn0.b;
+    scn0_c = (double)pj->scn0.c;
+    scn0_d = (double)pj->scn0.d;
+    scn0_e = (double)pj->scn0.e;
+    scn0_f = (double)pj->scn0.f;
+    scn0_g = (double)pj->scn0.g;
+    scn0_h = (double)pj->scn0.h;
+    scn1_a = (double)pj->scn1.a;
+    scn1_b = (double)pj->scn1.b;
+    scn1_c = (double)pj->scn1.c;
+    scn1_d = (double)pj->scn1.d;
+    scn1_e = (double)pj->scn1.e;
+    scn1_f = (double)pj->scn1.f;
+    scn1_g = (double)pj->scn1.g;
+    scn1_h = (double)pj->scn1.h;
     scn2_a = (double)pj->scn2.a;
     scn2_b = (double)pj->scn2.b;
     scn2_c = (double)pj->scn2.c;
@@ -1004,6 +1102,8 @@ static void PJContext_SetUniforms(PJContext *pj)
 			 bng_a, bng_b, bng_c, bng_d,
 			 knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h,
 			 glb_a, glb_b, glb_c, glb_d, 
+			 scn0_a, scn0_b, scn0_c, scn0_d, scn0_e, scn0_f, scn0_g, scn0_h,
+                         scn1_a, scn1_b, scn1_c, scn1_d, scn1_e, scn1_f, scn1_g, scn1_h,
                          scn2_a, scn2_b, scn2_c, scn2_d, scn2_e, scn2_f, scn2_g, scn2_h,
                          scn3_a, scn3_b, scn3_c, scn3_d, scn3_e, scn3_f, scn3_g, scn3_h,
                          scn4_a, scn4_b, scn4_c, scn4_d, scn4_e, scn4_f, scn4_g, scn4_h,
@@ -1040,10 +1140,6 @@ static int PJContext_Update(PJContext *pj)
     PJContext_SetUniforms(pj);
     PJContext_Render(pj);
     PJContext_AdvanceFrame(pj);
-/*    if (pj->use_net) {
-    	dopoll(pj);
-    }
-*/
     return 0;
 }
 
