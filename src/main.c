@@ -46,7 +46,7 @@ static void PrintCommandUsage(void)
     printf("    --net	enable network (default:OFF)\r\n");
     printf("    --tcp	enable TCP (default:UDP)\r\n");
     printf("    --port	listen on port (default:6666)\r\n");
-    printf("    --multi	process multiple values (default:OFF)\r\n");
+    printf("    --params	number of net input params (default:0)\r\n");
     printf("\r\n");
 }
 

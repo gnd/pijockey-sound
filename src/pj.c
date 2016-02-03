@@ -1,12 +1,10 @@
 /* -*- Mode: c; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*- */
 
 /* TODO
-+- non-blocking receiving
-+- close socket on exit
 +- pass only snd to dopoll()
 +- socket into separate file
-+- fix tcp multi receive
-+- move msg parsing away from udpread()
++- fix tcp receive
++- reactivate mouse input
 +*/
 
 #include <stdio.h>
@@ -52,6 +50,11 @@ typedef struct {
     time_t last_modify_time;
 } SourceObject;
 
+typedef struct linked_list {
+    float val;
+    struct linked_list *next;
+} dyn_val;
+
 struct PJContext_ {
     Graphics *graphics;
     Graphics_LAYOUT layout_backup;
@@ -60,100 +63,11 @@ struct PJContext_ {
     int use_tcp;
     int use_net;
     int port;
-    int multi;
     struct {
         int x, y;
         int fd;
     } mouse;
-    // sound a - h 
-    struct {
-        float a; 
-	float b;
-	float c;
-	float d;
-	float e;
-        float f;
-        float g;
-        float h;
-    } snd;
-    // bang a - d 
-    struct {  
-        float a;
-        float b;
-        float c;
-        float d;
-    } bng;
-    // kontrol a - h
-    struct {  
-        float a;
-        float b;
-        float c;
-        float d;
-        float e;
-        float f;
-        float g;
-        float h;
-    } knt;
-    // glob a - d
-    struct {
-        float a;
-        float b;
-        float c;
-        float d;
-    } glb;
-    // memory
-    struct {
-        float a;
-        float b;
-        float c;
-        float d;
-        float e;
-        float f;
-        float g;
-        float h;
-    } scn0;
-    struct {
-        float a;
-        float b;
-        float c;
-        float d;
-        float e;
-        float f;
-        float g;
-        float h;
-    } scn1;
-    struct {
-        float a;
-        float b;
-        float c;
-        float d;
-        float e;
-        float f;
-        float g;
-        float h;
-    } scn2;
-    struct {
-        float a;
-        float b;
-        float c;
-        float d;
-        float e;
-        float f;
-        float g;
-        float h;
-    } scn3; 
-    struct {
-        float a;
-        float b;
-        float c;
-        float d;
-        float e;
-        float f;
-        float g;
-        float h;
-    } scn4; 
-
-
+    dyn_val *net_input;
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
     struct {
@@ -166,7 +80,6 @@ struct PJContext_ {
     } scaling;
 };
 
-/* PDRCV */
 typedef struct _fdpoll
 {
     int fdp_fd;
@@ -190,7 +103,6 @@ static void dopoll(PJContext *pj);
 
 static void addport(int fd)
 {
-    int nfd = nfdpoll;
     t_fdpoll *fp;
     fdpoll = (t_fdpoll *)realloc(fdpoll,
         (nfdpoll+1) * sizeof(t_fdpoll));
@@ -210,8 +122,7 @@ static void addport(int fd)
 
 static void rmport(t_fdpoll *x)
 {
-    int nfd = nfdpoll;
-    int i, size = nfdpoll * sizeof(t_fdpoll);
+    int i;
     t_fdpoll *fp;
     for (i = nfdpoll, fp = fdpoll; i--; fp++)
     {
@@ -247,36 +158,28 @@ static void doconnect(void)
 static void udpread(PJContext *pj)
 {
     char buf[BUFSIZE];
-    char chan = buf[0]; 
-    char val[BUFSIZE];
     ssize_t len;
-    char *running;
-    char *token;
-    int i;
     int err;
     len = 1;
-    // clean up this shit
-    while (len > 0) {
-	errno = 0;
-        len = recv(sockfd, buf, BUFSIZE, MSG_DONTWAIT);
-	if (len > 0) {
-		// fprintf(stderr, "entering udpmakeoutput ", NULL);
-                udpmakeoutput(buf, pj);
-        }
 
-	err = errno;
-    	errno = 0;
-    	if (err != 0)
-    	{
-        	/* non-blocking returns -1 and sets errno to EAGAIN or EWOULDBLOCK. */
-         	if (err == EWOULDBLOCK || err == EAGAIN) {
-                	/* nothing to read .. */
-                        break;
-         	} else {
-                	sockerror("read(udp)");
-                	x_closesocket(sockfd);
-                	exit(1);
-         	}
+    while (len > 0) {
+        errno = 0;
+        len = recv(sockfd, buf, BUFSIZE, MSG_DONTWAIT);
+        if (len > 0) {
+            udpmakeoutput(buf, pj);
+        }
+        err = errno;
+        errno = 0;
+        if (err != 0) {
+            /* non-blocking returns -1 and sets errno to EAGAIN or EWOULDBLOCK. */
+            if (err == EWOULDBLOCK || err == EAGAIN) {
+                /* nothing to read .. */
+                break;
+            } else {
+                sockerror("read(udp)");
+                x_closesocket(sockfd);
+                exit(1);
+            }
     	}
     }
 }
@@ -284,198 +187,36 @@ static void udpread(PJContext *pj)
 
 void udpmakeoutput(char *buf, PJContext *pj) {
 
-    char chan = buf[0];
-    char val[BUFSIZE];
-    char *running;
-    char *token;
-    int i;
+    char line[BUFSIZE];
+    char *p, *val;
+    dyn_val *next=NULL;
+    dyn_val *current=NULL;
+    int i = 0;
 
-        if (pj->multi)
-        {
-            i = 0;
-            while ((buf[i] != ';') && (i < BUFSIZE)) {
-                val[i] = buf[i];
-                i++;
-            }
-            val[i] = ' ';
-            running = strdup(val);
+    while ((buf[i] != ';') && (i < BUFSIZE)) {
+        line[i] = buf[i];
+        i++;
+    }
 
-            token = strsep(&running, " ");
-            pj->snd.a = strtof(token,NULL);
+    p = &line;
 
-            token = strsep(&running, " ");
-            pj->snd.b = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->snd.c = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->snd.d = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->snd.e = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->snd.f = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->snd.g = strtof(token,NULL);
-		
-	    token = strsep(&running, " ");
-            pj->snd.h = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->bng.a = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->bng.b = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->bng.c = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->bng.d = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->glb.a = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->glb.b = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->glb.c = strtof(token,NULL);
-
-            token = strsep(&running, " ");
-            pj->glb.d = strtof(token,NULL);
-
-	    // MEMORY
-            if ((int)pj->glb.b == 0) {
-                token = strsep(&running, " ");
-                pj->scn0.a = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->scn0.b = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->scn0.c = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->scn0.d = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->scn0.e = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->scn0.f = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->scn0.g = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->scn0.h = strtof(token,NULL);
-            } else
-            if ((int)pj->glb.b == 1) {
-	        token = strsep(&running, " ");
-                pj->scn1.a = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn1.b = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn1.c = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn1.d = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn1.e = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn1.f = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn1.g = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn1.h = strtof(token,NULL);
-            } else if ((int)pj->glb.b == 2) {
-	        token = strsep(&running, " ");
-                pj->scn2.a = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn2.b = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn2.c = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn2.d = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn2.e = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn2.f = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn2.g = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn2.h = strtof(token,NULL);
-            } else if ((int)pj->glb.b == 3) {
-	        token = strsep(&running, " ");
-                pj->scn3.a = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn3.b = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn3.c = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn3.d = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn3.e = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn3.f = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn3.g = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn3.h = strtof(token,NULL);
-            } else if ((int)pj->glb.b == 4) {
-	        token = strsep(&running, " ");
-                pj->scn4.a = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn4.b = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn4.c = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn4.d = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn4.e = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn4.f = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn4.g = strtof(token,NULL);
-	        token = strsep(&running, " ");
-                pj->scn4.h = strtof(token,NULL);
-            } else {
-		// PASS TO PJ
-      	        token = strsep(&running, " ");
-                pj->knt.a = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->knt.b = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->knt.c = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->knt.d = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->knt.e = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->knt.f = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->knt.g = strtof(token,NULL);
-                token = strsep(&running, " ");
-                pj->knt.h = strtof(token,NULL);
-	    }
-
-            /* debug
-            fprintf(stderr, "set a to %f", pj->snd.a);
-            */
-        }
-
-	/* individual set suspended until needed again */
+    // make sure this wont go beyond declared memory range
+    while ((val = strsep(&p, " ")) != NULL) {
+        current=malloc(sizeof(dyn_val));
+        current->next = next;
+        next = current;
+        current->val = strtof(val,NULL);
+    }
+    pj->net_input = next;
 }
 
 
 static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
 {
-    /* CURRENTLY BROKEN */
-    /* STREAM HANDLING - BROKEN */
-    /* MULTI - BROKEN */
-    /* INDIVIDUAL - BROKEN */
+    // CURRENTLY BROKEN
     int i;
     int outlen = x->fdp_outlen;
     char *outbuf = x->fdp_outbuf;
-    char chan = inbuf[0];
-    char *running;
-    char *token;
 
     for (i = 2 ; i < len ; i++)
     {
@@ -483,7 +224,8 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
         if((c != '\n') || (!x->fdp_gotsemi))
             outbuf[outlen++] = c;
         x->fdp_gotsemi = 0;
-        if (outlen >= (BUFSIZE-1)) /*output buffer overflow; reserve 1 for '\n' */
+	//output buffer overflow; reserve 1 for '\n' 
+        if (outlen >= (BUFSIZE-1))
         {
             fprintf(stderr, "message too long; discarding\n");
             outlen = 0;
@@ -493,70 +235,8 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
         {
             if (!x->fdp_discard)
             {
-                if (pj->multi)
-                {
-                    running = strdup(outbuf);
-
-                    token = strsep(&running, " ");
-                    pj->snd.a = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.b = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.c = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.d = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.e = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.f = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.g = strtof(token,NULL);
-
-                    token = strsep(&running, " ");
-                    pj->snd.h = strtof(token,NULL);
-
-                }
-                else 
-                {
-                    outbuf[outlen++] = '\0';
-                    switch (chan) {
-                        case 'a':
-                            pj->snd.a = strtof(outbuf,NULL);
-                            break;
-                        case 'b':
-                            pj->snd.b = strtof(outbuf,NULL);
-                            break;
-                        case 'c':
-                            pj->snd.c = strtof(outbuf,NULL);
-                            break;
-                        case 'd':
-                            pj->snd.d = strtof(outbuf,NULL);
-                            break;
-                        case 'e':
-                            pj->snd.e = strtof(outbuf,NULL);
-                            break;
-                        case 'f':
-                            pj->snd.f = strtof(outbuf,NULL);
-                            break;
-                        case 'g':
-                            pj->snd.g = strtof(outbuf,NULL);
-                            break;
-                        case 'h':
-                            pj->snd.h = strtof(outbuf,NULL);
-                            break;
-                    }
-                }
-                /* debug 
-                fprintf(stderr, "set chan to %c ", chan);
-                */
+	    // fix
             }
-
             outlen = 0;
             x->fdp_discard = 0;
             x->fdp_gotsemi = 1;
@@ -602,7 +282,7 @@ static void dopoll(PJContext *pj)
 
     FD_ZERO(&readset);
     FD_SET(fileno(stdin), &readset);
-    /* no mouse FD_SET(pj->mouse.fd, &readset); */
+    // no mouse FD_SET(pj->mouse.fd, &readset);
     if (pj->use_tcp) {
     	for (fp = fdpoll, i = nfdpoll; i--; fp++)
         	FD_SET(fp->fdp_fd, &readset);
@@ -610,7 +290,7 @@ static void dopoll(PJContext *pj)
         FD_SET(sockfd, &readset);
     }
 
-    /* timeout on socket - wait 1ms */
+    // timeout on socket - wait 1ms
     tv.tv_sec = 0;
     tv.tv_usec = 100;
 
@@ -692,80 +372,10 @@ int PJContext_Construct(PJContext *pj)
     pj->use_tcp = 0;
     pj->use_net = 0;
     pj->port = 6666;
-    pj->multi = 1;
     pj->mouse.x = 0;
     pj->mouse.y = 0;
     pj->mouse.fd = open(MOUSE_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
-    // SOUND
-    pj->snd.a = 0;
-    pj->snd.b = 0;
-    pj->snd.c = 0;
-    pj->snd.d = 0;
-    pj->snd.e = 0;
-    pj->snd.f = 0;
-    pj->snd.g = 0;
-    pj->snd.h = 0;
-    // BANG
-    pj->bng.a = 0;
-    pj->bng.b = 0;
-    pj->bng.c = 0;
-    pj->bng.d = 0;
-    // KONTROL
-    pj->knt.a = 0;
-    pj->knt.b = 0;
-    pj->knt.c = 0;
-    pj->knt.d = 0;
-    pj->knt.e = 0;
-    pj->knt.f = 0;
-    pj->knt.g = 0;
-    pj->knt.h = 0;
-    // GLOBALS
-    pj->glb.a = 0;
-    pj->glb.b = 0;
-    pj->glb.c = 0;
-    pj->glb.d = 0;
-    // MEMORY
-    pj->scn0.a = 0;
-    pj->scn0.b = 0;
-    pj->scn0.c = 0;
-    pj->scn0.d = 0;
-    pj->scn0.e = 0;
-    pj->scn0.f = 0;
-    pj->scn0.g = 0;
-    pj->scn0.h = 0;
-    pj->scn1.a = 0;
-    pj->scn1.b = 0;
-    pj->scn1.c = 0;
-    pj->scn1.d = 0;
-    pj->scn1.e = 0;
-    pj->scn1.f = 0;
-    pj->scn1.g = 0;
-    pj->scn1.h = 0;
-    pj->scn2.a = 0;
-    pj->scn2.b = 0;
-    pj->scn2.c = 0;
-    pj->scn2.d = 0;
-    pj->scn2.e = 0;
-    pj->scn2.f = 0;
-    pj->scn2.g = 0;
-    pj->scn2.h = 0;
-    pj->scn3.a = 0;
-    pj->scn3.b = 0;
-    pj->scn3.c = 0;
-    pj->scn3.d = 0;
-    pj->scn3.e = 0;
-    pj->scn3.f = 0;
-    pj->scn3.g = 0;
-    pj->scn3.h = 0;
-    pj->scn4.a = 0;
-    pj->scn4.b = 0;
-    pj->scn4.c = 0;
-    pj->scn4.d = 0;
-    pj->scn4.e = 0;
-    pj->scn4.f = 0;
-    pj->scn4.g = 0;
-    pj->scn4.h = 0;
-
+    pj->net_input = NULL;
     pj->time_origin = GetCurrentTimeInMilliSecond();
     pj->frame = 0;
     pj->verbose.render_time = 0;
@@ -807,7 +417,7 @@ void PJContext_Listen(int use_tcp, int port)
             exit(1);
         }
 
-    /* UDP */
+    // UDP
     } else {
         protocol = SOCK_DGRAM;
         sockfd = socket(AF_INET, protocol, 0);
@@ -1011,102 +621,14 @@ static void PJContext_SetUniforms(PJContext *pj)
 {
     double t;
     double mouse_x, mouse_y;
-    double snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h;
-    double bng_a, bng_b, bng_c, bng_d;
-    double knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h;
-    double glb_a, glb_b, glb_c, glb_d;
-    double scn0_a, scn0_b, scn0_c, scn0_d, scn0_e, scn0_f, scn0_g, scn0_h;
-    double scn1_a, scn1_b, scn1_c, scn1_d, scn1_e, scn1_f, scn1_g, scn1_h;
-    double scn2_a, scn2_b, scn2_c, scn2_d, scn2_e, scn2_f, scn2_g, scn2_h;
-    double scn3_a, scn3_b, scn3_c, scn3_d, scn3_e, scn3_f, scn3_g, scn3_h;
-    double scn4_a, scn4_b, scn4_c, scn4_d, scn4_e, scn4_f, scn4_g, scn4_h;
     int width, height;
-
     t = GetCurrentTimeInMilliSecond() - pj->time_origin;
-
-    snd_a = (double)pj->snd.a;
-    snd_b = (double)pj->snd.b;
-    snd_c = (double)pj->snd.c;
-    snd_d = (double)pj->snd.d;
-    snd_e = (double)pj->snd.e;
-    snd_f = (double)pj->snd.f;
-    snd_g = (double)pj->snd.g;
-    snd_h = (double)pj->snd.h;
-
-    bng_a = (double)pj->bng.a;
-    bng_b = (double)pj->bng.b;
-    bng_c = (double)pj->bng.c;
-    bng_d = (double)pj->bng.d;
-
-    knt_a = (double)pj->knt.a;
-    knt_b = (double)pj->knt.b;
-    knt_c = (double)pj->knt.c;
-    knt_d = (double)pj->knt.d;
-    knt_e = (double)pj->knt.e;
-    knt_f = (double)pj->knt.f;
-    knt_g = (double)pj->knt.g;
-    knt_h = (double)pj->knt.h;
-
-    glb_a = (double)pj->glb.a;
-    glb_b = (double)pj->glb.b;
-    glb_c = (double)pj->glb.c;
-    glb_d = (double)pj->glb.d;
-
-    scn0_a = (double)pj->scn0.a;
-    scn0_b = (double)pj->scn0.b;
-    scn0_c = (double)pj->scn0.c;
-    scn0_d = (double)pj->scn0.d;
-    scn0_e = (double)pj->scn0.e;
-    scn0_f = (double)pj->scn0.f;
-    scn0_g = (double)pj->scn0.g;
-    scn0_h = (double)pj->scn0.h;
-    scn1_a = (double)pj->scn1.a;
-    scn1_b = (double)pj->scn1.b;
-    scn1_c = (double)pj->scn1.c;
-    scn1_d = (double)pj->scn1.d;
-    scn1_e = (double)pj->scn1.e;
-    scn1_f = (double)pj->scn1.f;
-    scn1_g = (double)pj->scn1.g;
-    scn1_h = (double)pj->scn1.h;
-    scn2_a = (double)pj->scn2.a;
-    scn2_b = (double)pj->scn2.b;
-    scn2_c = (double)pj->scn2.c;
-    scn2_d = (double)pj->scn2.d;
-    scn2_e = (double)pj->scn2.e;
-    scn2_f = (double)pj->scn2.f;
-    scn2_g = (double)pj->scn2.g;
-    scn2_h = (double)pj->scn2.h;
-    scn3_a = (double)pj->scn3.a;
-    scn3_b = (double)pj->scn3.b;
-    scn3_c = (double)pj->scn3.c;
-    scn3_d = (double)pj->scn3.d;
-    scn3_e = (double)pj->scn3.e;
-    scn3_f = (double)pj->scn3.f;
-    scn3_g = (double)pj->scn3.g;
-    scn3_h = (double)pj->scn3.h;
-    scn4_a = (double)pj->scn4.a;
-    scn4_b = (double)pj->scn4.b;
-    scn4_c = (double)pj->scn4.c;
-    scn4_d = (double)pj->scn4.d;
-    scn4_e = (double)pj->scn4.e;
-    scn4_f = (double)pj->scn4.f;
-    scn4_g = (double)pj->scn4.g;
-    scn4_h = (double)pj->scn4.h;
-
     Graphics_GetWindowSize(pj->graphics, &width, &height);
     mouse_x = (double)pj->mouse.x / width;
     mouse_y = (double)pj->mouse.y / height;
 
     Graphics_SetUniforms(pj->graphics, t / 1000.0, 
-                         snd_a, snd_b, snd_c, snd_d, snd_e, snd_f, snd_g, snd_h,
-			 bng_a, bng_b, bng_c, bng_d,
-			 knt_a, knt_b, knt_c, knt_d, knt_e, knt_f, knt_g, knt_h,
-			 glb_a, glb_b, glb_c, glb_d, 
-			 scn0_a, scn0_b, scn0_c, scn0_d, scn0_e, scn0_f, scn0_g, scn0_h,
-                         scn1_a, scn1_b, scn1_c, scn1_d, scn1_e, scn1_f, scn1_g, scn1_h,
-                         scn2_a, scn2_b, scn2_c, scn2_d, scn2_e, scn2_f, scn2_g, scn2_h,
-                         scn3_a, scn3_b, scn3_c, scn3_d, scn3_e, scn3_f, scn3_g, scn3_h,
-                         scn4_a, scn4_b, scn4_c, scn4_d, scn4_e, scn4_f, scn4_g, scn4_h,
+			 pj->net_input,
                          mouse_x, mouse_y, drand48(), drand48());
 }
 
@@ -1287,8 +809,10 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
         } else if (strcmp(arg, "--port") == 0) {
             pj->port = strtol(argv[i+1], NULL, 10);
             i++;
-        } else if (strcmp(arg, "--multi") == 0) {
-            pj->multi = 1;
+        } else if (strcmp(arg, "--params") == 0) {
+            pj->params= strtof(argv[i+1], NULL, 10);
+	    i++;
+        }
         } else {
             printf("layer %d: %s\r\n", layer, arg);
             PJContext_AppendLayer(pj, arg);
@@ -1296,9 +820,10 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
         }
     }
     Graphics_SetBackbuffer(g, pj->use_backbuffer);
+    Graphics_SetNetParams(g, pj->params);
     Graphics_ApplyOffscreenChange(pj->graphics);
     if (pj->use_net) {
-    	PJContext_Listen(pj->use_tcp, pj->port);
+     	PJContext_Listen(pj->use_tcp, pj->port);
     }
     return (layer == 0) ? 1 : 0;
 }

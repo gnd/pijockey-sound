@@ -1,8 +1,10 @@
 /* -*- Mode: c; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*- */
 
 /* TODO
-- what is rand ?
-- what is prev_layer & prev_layer_resolution ?
++- finish net_input processing 
++- gettng adresses is done
++- setuniforms as 1f first
++- then make vectors out of them
 */
 
 
@@ -32,6 +34,20 @@ typedef struct {
     int denom;
 } Scaling;
 
+// to catch the net_input from pj.c
+typedef struct linked_list {
+    float val;
+    struct linked_list *next;
+} dyn_val;
+
+// GLuint net_input
+typedef struct linked_list {
+    GLuint val;
+    struct linked_list *next;
+} GLdyn_val;
+
+
+
 struct RenderLayer_ {
     GLuint fragment_shader;
     GLuint program;
@@ -40,34 +56,7 @@ struct RenderLayer_ {
     GLuint framebuffer;
     struct {
         GLuint vertex_coord;
-	// SOUND
-        GLuint sa;
-        GLuint sb;
-        GLuint sc;
-        GLuint sd;
-        GLuint se;
-        GLuint sf;
-        GLuint sg;
-        GLuint sh;
-	// BANG
-	GLuint bng;
-	// KONTROL
-	GLuint knt1;
-	GLuint knt2;
-	// GLOBAL
-	GLuint glb;
-	// MEMORY
-	GLuint scn0_a;
-        GLuint scn0_b;
-        GLuint scn1_a;
-        GLuint scn1_b;
-        GLuint scn2_a;
-        GLuint scn2_b;
-        GLuint scn3_a;
-        GLuint scn3_b;
-        GLuint scn4_a;
-        GLuint scn4_b;
-
+        GLdyn_val net_input;
         GLuint mouse;
         GLuint time;
         GLuint resolution;
@@ -102,6 +91,7 @@ struct Graphics_ {
     } static_image[MAX_STATIC_IMAGE]; /* TODO */
     int num_static_image;
     int enable_backbuffer;
+    GLuint net_params;
     GLuint backbuffer_texture_object;
     GLuint backbuffer_texture_unit;
     Scaling window_scaling;
@@ -320,10 +310,15 @@ static void RenderLayer_DeallocateOffscreen(RenderLayer *layer)
 
 static int RenderLayer_BuildProgram(RenderLayer *layer,
                                     GLuint vertex_shader,
-                                    GLuint array_buffer_fullscene_quad)
+                                    GLuint array_buffer_fullscene_quad
+				    GLuint net_params)
 {
     GLint param;
     GLuint new_program;
+    GLdyn_val *current=NULL;
+    GLdyn_val *next=NULL;
+    GLuint i;
+    char[5] name; /* MAX 99 ! */
 
     CHECK_GL();
     glCompileShader(layer->fragment_shader);
@@ -348,32 +343,18 @@ static int RenderLayer_BuildProgram(RenderLayer *layer,
     glUseProgram(layer->program);
     layer->attr.vertex_coord = glGetAttribLocation(layer->program, "vertex_coord");
     layer->attr.time = glGetUniformLocation(layer->program, "time");
-    layer->attr.sa = glGetUniformLocation(layer->program, "s1");
-    layer->attr.sb = glGetUniformLocation(layer->program, "s2");
-    layer->attr.sc = glGetUniformLocation(layer->program, "s3");
-    layer->attr.sd = glGetUniformLocation(layer->program, "s4");
-    layer->attr.se = glGetUniformLocation(layer->program, "s5");
-    layer->attr.sf = glGetUniformLocation(layer->program, "s6");
-    layer->attr.sg = glGetUniformLocation(layer->program, "s7");
-    layer->attr.sh = glGetUniformLocation(layer->program, "s8");
-    // BANG
-    layer->attr.bng = glGetUniformLocation(layer->program, "bng");
-    // KONTROL
-    layer->attr.knt1 = glGetUniformLocation(layer->program, "knt1");
-    layer->attr.knt2 = glGetUniformLocation(layer->program, "knt2");
-    // GLOBAL
-    layer->attr.glb = glGetUniformLocation(layer->program, "glb");
-    // MEMORY
-    layer->attr.scn0_a = glGetUniformLocation(layer->program, "scn0_a");
-    layer->attr.scn0_b = glGetUniformLocation(layer->program, "scn0_b");
-    layer->attr.scn1_a = glGetUniformLocation(layer->program, "scn1_a");
-    layer->attr.scn1_b = glGetUniformLocation(layer->program, "scn1_b");
-    layer->attr.scn2_a = glGetUniformLocation(layer->program, "scn2_a");
-    layer->attr.scn2_b = glGetUniformLocation(layer->program, "scn2_b");
-    layer->attr.scn3_a = glGetUniformLocation(layer->program, "scn3_a");
-    layer->attr.scn3_b = glGetUniformLocation(layer->program, "scn3_b");
-    layer->attr.scn4_a = glGetUniformLocation(layer->program, "scn4_a");
-    layer->attr.scn4_b = glGetUniformLocation(layer->program, "scn4_b");
+   
+    /* Gets m_(0-net_params) adresses */
+    i = 0;
+    while (i < net_params) {
+        current=malloc(sizeof(GLdyn_val));
+        current->next = next;
+        next = current;
+        sprintf(name, "m_%d", i);
+        current->val = glGetUniformLocation(layer->program, name);
+        i++; 
+    }
+
     layer->attr.mouse = glGetUniformLocation(layer->program, "mouse");
     layer->attr.resolution = glGetUniformLocation(layer->program, "resolution");
     layer->attr.backbuffer = glGetUniformLocation(layer->program, "backbuffer");
@@ -488,6 +469,7 @@ Graphics *Graphics_Create(Graphics_LAYOUT layout,
     g->num_render_layer = 0;
     g->window_scaling = sc;
     g->enable_backbuffer = 0;
+    g->net_params = 0;
     g->backbuffer_texture_object = 0;
     g->backbuffer_texture_unit = 0;
 
@@ -770,26 +752,21 @@ int Graphics_BuildRenderLayer(Graphics *g, int layer_index)
 {
     RenderLayer_BuildProgram(&g->render_layer[layer_index],
                              g->vertex_shader,
-                             g->array_buffer_fullscene_quad);
+                             g->array_buffer_fullscene_quad
+			     g->net_params);
     /* TODO: handle error */
     return 0;
 }
 
 void Graphics_SetUniforms(Graphics *g, double t,
-		          double snd_a, double snd_b, double snd_c, double snd_d, double snd_e,	double snd_f, double snd_g, double snd_h,
-			  double bng_a, double bng_b, double bng_c, double bng_d,
-			  double knt_a, double knt_b, double knt_c, double knt_d, double knt_e, double knt_f, double knt_g, double knt_h,
-			  double glb_a, double glb_b, double glb_c, double glb_d,
-                          double scn0_a, double scn0_b, double scn0_c, double scn0_d, double scn0_e, double scn0_f, double scn0_g, double scn0_h,
-                          double scn1_a, double scn1_b, double scn1_c, double scn1_d, double scn1_e, double scn1_f, double scn1_g, double scn1_h,
-			  double scn2_a, double scn2_b, double scn2_c, double scn2_d, double scn2_e, double scn2_f, double scn2_g, double scn2_h,
-			  double scn3_a, double scn3_b, double scn3_c, double scn3_d, double scn3_e, double scn3_f, double scn3_g, double scn3_h,
-			  double scn4_a, double scn4_b, double scn4_c, double scn4_d, double scn4_e, double scn4_f, double scn4_g, double scn4_h,
+			  dyn_val net_input,
                           double mouse_x, double mouse_y,
                           double randx, double randy)
 {
-    int i;
+    int i,j;
     int width, height;
+    dyn_val *next=NULL;
+    dyn_val *current=NULL;
 
     CHECK_GL();
     Video_GetSourceSize(g->video, &width, &height);
@@ -799,6 +776,23 @@ void Graphics_SetUniforms(Graphics *g, double t,
         glUseProgram(p->program);
         glUniform1f(p->attr.time, t);
         glUniform2f(p->attr.resolution, (double)width, (double)height);
+
+	//net_input
+        j = 0;
+        /* check not only for net_params but also if the next isnt NULL */
+        /* WHAT A MESS */
+        next = net_input;
+	while (j < g->net_params) {
+		//get net_input_val = actual data to be written into glsl
+               //get net_input_addr = adrress to write to
+               // write like: glUniform1f(net_input_addr, net_input_val);(
+		// advance	current_val = current_val->next;
+               // advance	current_addr = current_addr->next; 
+              // j++
+	}
+
+        
+/*
 	// SOUND
         glUniform1f(p->attr.sa, snd_a);
         glUniform1f(p->attr.sb, snd_b);
@@ -829,6 +823,7 @@ void Graphics_SetUniforms(Graphics *g, double t,
         glUniform4f(p->attr.scn3_b, scn3_e, scn3_f, scn3_g, scn3_h);
         glUniform4f(p->attr.scn4_a, scn4_a, scn4_b, scn4_c, scn4_d);
         glUniform4f(p->attr.scn4_b, scn4_e, scn4_f, scn4_g, scn4_h);
+*/
 
         glUseProgram(0);
     }
@@ -907,9 +902,14 @@ void Graphics_Render(Graphics *g)
     VideoEGL_SwapBuffers(g->video_egl);
 }
 
-void Graphics_SetBackbuffer(Graphics *g, int enable)
+void Graphics_SetBackbuffe(Graphics *g, int enable)
 {
     g->enable_backbuffer = enable;
+}
+
+void Graphics_SetNetParams(Graphics *g, int params)
+{
+    g->net_params = params;
 }
 
 void Graphics_GetWindowSize(Graphics *g, int *out_width, int *out_height)
