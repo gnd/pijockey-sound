@@ -50,10 +50,6 @@ typedef struct {
     time_t last_modify_time;
 } SourceObject;
 
-typedef struct linked_list {
-    float val;
-    struct linked_list *next;
-} dyn_val;
 
 struct PJContext_ {
     Graphics *graphics;
@@ -68,6 +64,7 @@ struct PJContext_ {
         int fd;
     } mouse;
     dyn_val *net_input;
+    int net_params;
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
     struct {
@@ -95,7 +92,7 @@ static int maxfd;
 static int sockfd;
 static int protocol;
 
-static void sockerror(char *s);
+static void sockerror(const char *s);
 static void x_closesocket(int fd);
 static void dopoll(PJContext *pj);
 #define BUFSIZE 8192
@@ -198,7 +195,7 @@ void udpmakeoutput(char *buf, PJContext *pj) {
         i++;
     }
 
-    p = &line;
+    p = line;
 
     // make sure this wont go beyond declared memory range
     while ((val = strsep(&p, " ")) != NULL) {
@@ -211,7 +208,7 @@ void udpmakeoutput(char *buf, PJContext *pj) {
 }
 
 
-static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
+static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len)
 {
     // CURRENTLY BROKEN
     int i;
@@ -248,7 +245,7 @@ static int tcpmakeoutput(t_fdpoll *x, char *inbuf, int len, PJContext *pj)
 }
 
 
-static void tcpread(t_fdpoll *x, PJContext *pj)
+static void tcpread(t_fdpoll *x)
 {
     int  ret;
     char inbuf[BUFSIZE];
@@ -259,10 +256,10 @@ static void tcpread(t_fdpoll *x, PJContext *pj)
     }
     else if (ret == 0)
         rmport(x);
-    else tcpmakeoutput(x, inbuf, ret, pj);
+    else tcpmakeoutput(x, inbuf, ret);
 }
 
-static void sockerror(char *s)
+static void sockerror(const char *s)
 {
     int err = errno;
     fprintf(stderr, "%s: %s (%d)\n", s, strerror(err), err);
@@ -302,7 +299,7 @@ static void dopoll(PJContext *pj)
         if (pj->use_tcp) {
 	    for (i = 0; i < nfdpoll; i++)
             if (FD_ISSET(fdpoll[i].fdp_fd, &readset))
-                tcpread(&fdpoll[i], pj);
+                tcpread(&fdpoll[i]);
             if (FD_ISSET(sockfd, &readset))
                 doconnect();
         } else {
@@ -376,6 +373,7 @@ int PJContext_Construct(PJContext *pj)
     pj->mouse.y = 0;
     pj->mouse.fd = open(MOUSE_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
     pj->net_input = NULL;
+    pj->net_params = 0;
     pj->time_origin = GetCurrentTimeInMilliSecond();
     pj->frame = 0;
     pj->verbose.render_time = 0;
@@ -408,7 +406,7 @@ void PJContext_Listen(int use_tcp, int port)
         {   
             sockerror("bind");
             x_closesocket(sockfd);
-            return (0);
+            //return (0);
         }
         if (listen(sockfd, 5) < 0)
         {
@@ -434,7 +432,7 @@ void PJContext_Listen(int use_tcp, int port)
         {   
             sockerror("bind");
             x_closesocket(sockfd);
-            return (0);
+            //return (0);
         }
     }
 }
@@ -557,7 +555,7 @@ static int PJContext_ReloadAndRebuildShadersIfNeed(PJContext *pj)
                 PJDebug(pj, ("update: %s\r\n", so->path));
                 RenderLayer_UpdateShaderSource(layer, code, (int)len);
                 so->last_modify_time = t;
-                Graphics_BuildRenderLayer(pj->graphics, i);
+                Graphics_BuildRenderLayer(pj->graphics, i, pj->net_input);
             }
         }
     }
@@ -809,10 +807,10 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
         } else if (strcmp(arg, "--port") == 0) {
             pj->port = strtol(argv[i+1], NULL, 10);
             i++;
+	// how much parameters to have
         } else if (strcmp(arg, "--params") == 0) {
-            pj->params= strtof(argv[i+1], NULL, 10);
+            pj->net_params=atoi(argv[i+1]);
 	    i++;
-        }
         } else {
             printf("layer %d: %s\r\n", layer, arg);
             PJContext_AppendLayer(pj, arg);
@@ -820,7 +818,7 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
         }
     }
     Graphics_SetBackbuffer(g, pj->use_backbuffer);
-    Graphics_SetNetParams(g, pj->params);
+    Graphics_SetNetParams(g, pj->net_params);
     Graphics_ApplyOffscreenChange(pj->graphics);
     if (pj->use_net) {
      	PJContext_Listen(pj->use_tcp, pj->port);

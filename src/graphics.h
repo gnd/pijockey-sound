@@ -5,6 +5,7 @@
 
 #include <stddef.h>
 #include "base.h"
+#include <GLES2/gl2.h>
 
 
 typedef enum {
@@ -44,11 +45,13 @@ typedef enum {
     Graphics_WRAP_MODE_ENUMS
 } Graphics_WRAP_MODE;
 
+
+// net_input from pj.c
 typedef struct linked_list {
     float val;
+    float addr;
     struct linked_list *next;
 } dyn_val;
-
 
 
 typedef struct Graphics_ Graphics;
@@ -88,12 +91,12 @@ int Graphics_ApplyWindowScalingChange(Graphics *g);
 int Graphics_AllocateOffscreen(Graphics *g);
 void Graphics_DeallocateOffscreen(Graphics *g);
 RenderLayer *Graphics_GetRenderLayer(Graphics *g, int layer_index);
-int Graphics_BuildRenderLayer(Graphics *g, int layer_index);
+int Graphics_BuildRenderLayer(Graphics *g, int layer_index, dyn_val *net_input);
 
 void Graphics_SetUniforms(Graphics *g, double t,
-			  dyn_val net_input,
+			  dyn_val *net_input,
                           double mouse_x, double mouse_y,
-                          double random_x, double random_y);
+                          double randx, double randy);
 void Graphics_Render(Graphics *g);
 
 void Graphics_SetBackbuffer(Graphics *g, int enable);

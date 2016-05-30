@@ -4,6 +4,7 @@
 #define INCLUDED_PJ_H
 
 typedef struct PJContext_ PJContext;
+void udpmakeoutput(char *buf, PJContext *pj);
 
 int PJContext_HostInitialize(void);
 void PJContext_HostDeinitialize(void);
