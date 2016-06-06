@@ -46,12 +46,17 @@ typedef enum {
 } Graphics_WRAP_MODE;
 
 
-// net_input from pj.c
-typedef struct linked_list {
+// net_input values
+typedef struct linked_val {
     float val;
-    float addr;
-    struct linked_list *next;
-} dyn_val;
+    struct linked_val *next;
+} netin_val;
+
+// net_input addresses
+typedef struct linked_addr {
+    GLuint addr;
+    struct linked_addr *next;
+} netin_addr;
 
 
 typedef struct Graphics_ Graphics;
@@ -91,15 +96,16 @@ int Graphics_ApplyWindowScalingChange(Graphics *g);
 int Graphics_AllocateOffscreen(Graphics *g);
 void Graphics_DeallocateOffscreen(Graphics *g);
 RenderLayer *Graphics_GetRenderLayer(Graphics *g, int layer_index);
-int Graphics_BuildRenderLayer(Graphics *g, int layer_index, dyn_val *net_input);
+int Graphics_BuildRenderLayer(Graphics *g, int layer_index);
 
 void Graphics_SetUniforms(Graphics *g, double t,
-			  dyn_val *net_input,
+			  netin_val *net_input_val,
                           double mouse_x, double mouse_y,
                           double randx, double randy);
 void Graphics_Render(Graphics *g);
 
 void Graphics_SetBackbuffer(Graphics *g, int enable);
+void Graphics_SetNetParams(Graphics *g, int params);
 Graphics_LAYOUT Graphics_GetCurrentLayout(Graphics *g);
 Graphics_LAYOUT Graphics_GetLayout(Graphics_LAYOUT layout, int forward);
 void Graphics_GetWindowSize(Graphics *g, int *out_width, int *out_height);

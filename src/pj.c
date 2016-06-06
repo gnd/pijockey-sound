@@ -36,7 +36,7 @@
 #define SOCKET_ERROR -1
 
 
-
+#define DEBUG 1
 
 #define MAX_SOURCE_BUF (1024*64)
 #define MOUSE_DEVICE_PATH "/dev/input/event0"
@@ -63,7 +63,7 @@ struct PJContext_ {
         int x, y;
         int fd;
     } mouse;
-    dyn_val *net_input;
+    netin_val *net_input_val;
     int net_params;
     double time_origin;
     unsigned int frame;         /* TODO: move to graphics */
@@ -186,8 +186,7 @@ void udpmakeoutput(char *buf, PJContext *pj) {
 
     char line[BUFSIZE];
     char *p, *val;
-    dyn_val *next=NULL;
-    dyn_val *current=NULL;
+    netin_val *curr=NULL;
     int i = 0;
 
     while ((buf[i] != ';') && (i < BUFSIZE)) {
@@ -197,14 +196,13 @@ void udpmakeoutput(char *buf, PJContext *pj) {
 
     p = line;
 
-    // make sure this wont go beyond declared memory range
-    while ((val = strsep(&p, " ")) != NULL) {
-        current=malloc(sizeof(dyn_val));
-        current->next = next;
-        next = current;
-        current->val = strtof(val,NULL);
+    i = 0;
+    curr = pj->net_input_val;
+    while (((val = strsep(&p, " ")) != NULL) && (i < pj->net_params)) {
+	curr->val = strtof(val,NULL);
+        curr = curr->next;
+	i++;
     }
-    pj->net_input = next;
 }
 
 
@@ -372,7 +370,7 @@ int PJContext_Construct(PJContext *pj)
     pj->mouse.x = 0;
     pj->mouse.y = 0;
     pj->mouse.fd = open(MOUSE_DEVICE_PATH, O_RDONLY | O_NONBLOCK);
-    pj->net_input = NULL;
+    pj->net_input_val = NULL;
     pj->net_params = 0;
     pj->time_origin = GetCurrentTimeInMilliSecond();
     pj->frame = 0;
@@ -555,7 +553,7 @@ static int PJContext_ReloadAndRebuildShadersIfNeed(PJContext *pj)
                 PJDebug(pj, ("update: %s\r\n", so->path));
                 RenderLayer_UpdateShaderSource(layer, code, (int)len);
                 so->last_modify_time = t;
-                Graphics_BuildRenderLayer(pj->graphics, i, pj->net_input);
+                Graphics_BuildRenderLayer(pj->graphics, i);
             }
         }
     }
@@ -626,7 +624,7 @@ static void PJContext_SetUniforms(PJContext *pj)
     mouse_y = (double)pj->mouse.y / height;
 
     Graphics_SetUniforms(pj->graphics, t / 1000.0, 
-			 pj->net_input,
+			 pj->net_input_val,
                          mouse_x, mouse_y, drand48(), drand48());
 }
 
@@ -818,6 +816,20 @@ int PJContext_ParseArgs(PJContext *pj, int argc, const char *argv[])
         }
     }
     Graphics_SetBackbuffer(g, pj->use_backbuffer);
+   
+    // create net_input_val linked list
+    netin_val *curr=NULL;
+    netin_val *next=NULL; 
+    i = 0;
+    while (i < pj->net_params) {
+        curr=malloc(sizeof(netin_val));
+        curr->next = next;
+	curr->val = 0;
+        next = curr;
+	i++;
+    }
+    pj->net_input_val = next;
+
     Graphics_SetNetParams(g, pj->net_params);
     Graphics_ApplyOffscreenChange(pj->graphics);
     if (pj->use_net) {
